@@ -1,13 +1,20 @@
 {
-  "latest_version": "0.6.1",
-  "latest_version_code": 11,
-  "latest_apk_url": "https://artvenwyvbi7p.space.minimax.io/downloads/pulse-notes-0.6.1-greenfield-debug.apk",
-  "latest_apk_size_bytes": 4545673,
-  "latest_apk_sha256": "DBECA01B4A84BE03C9AADDC1E17E98E933F0C36A6021A205070472AB549C9F67",
-  "release_notes_url": "https://kzgoiplukbnzs.space.minimax.io/changelog/#v0.6.1",
+  "latest_version": "0.6.2",
+  "latest_version_code": 12,
+  "latest_apk_url": "https://wztgxiy1eu29i.space.minimax.io/pulse-notes-0.6.2-debug.apk",
+  "latest_apk_size_bytes": 4551289,
+  "latest_apk_sha256": "2F8BB21841763705C34FDA9DE1281A75029D524AB212F55E48C6BD7A9A288F60",
+  "release_notes_url": "https://wztgxiy1eu29i.space.minimax.io/#v0.6.2",
   "min_supported_version": "0.3.0",
   "force_update_below": "0.3.0",
   "versions": [
+    {
+      "version": "0.6.2",
+      "version_code": 12,
+      "date": "2026-08-01",
+      "type": "minor",
+      "summary": "Onboarding v2 (4 screens: Welcome, Capture, Smart Engine v3, Local-first) with M3 expressive buttons, slide transitions, anti-emoji UI"
+    },
     {
       "version": "0.6.1",
       "version_code": 11,
