@@ -1,23 +1,26 @@
 {
   "name": "pulse-android",
-  "version": "0.2.0",
+  "version": "0.6.0",
   "private": true,
-  "description": "Pulse Android wrapper (Capacitor 8 + Pulse web bundle).",
+  "description": "Pulse Notes — markdown editor for Android (Capacitor 8 + Svelte 5 web bundle).",
   "type": "module",
   "scripts": {
     "sync": "cap sync android",
     "open": "cap open android",
-    "build:debug": "cap sync android && cd android && gradlew assembleDebug"
+    "build:web": "cd web && npm install && npm run build",
+    "build:debug": "npm run build:web && cap sync android && cd android && gradlew assembleDebug"
   },
   "dependencies": {
     "@capacitor-community/speech-recognition": "^7.0.1",
     "@capacitor/android": "^8.4.2",
     "@capacitor/app": "^8.1.1",
     "@capacitor/browser": "^8.0.4",
+    "@capacitor/clipboard": "^8.0.1",
     "@capacitor/cli": "^8.4.2",
     "@capacitor/core": "^8.4.2",
     "@capacitor/haptics": "^8.0.1",
     "@capacitor/keyboard": "^8.0.5",
+    "@capacitor/share": "^8.0.1",
     "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2"
   },
