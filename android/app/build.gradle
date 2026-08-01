@@ -39,6 +39,13 @@ android {
                 storePassword keystoreProperties['storePassword']
                 keyAlias keystoreProperties['keyAlias']
                 keyPassword keystoreProperties['keyPassword']
+                // v1 (JAR signing) is legacy and not used by Android 9+; disabled.
+                // v2 is required for APK Signature Scheme v2 (Android 7+).
+                // v3 is opt-in in AGP 8.x; enable explicitly so the APK carries
+                // both v2 and v3 signature blocks (R95a, future-proofs key rotation).
+                enableV1Signing false
+                enableV2Signing true
+                enableV3Signing true
             }
         }
     }
