@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { APP_VERSION } from '$lib/update-checker/update-checker';
+
   interface Props {
     onContinue: () => void;
   }
@@ -46,7 +48,7 @@
     A markdown editor, built for Android, from scratch.
   </p>
 
-  <p class="welcome__meta" data-testid="welcome-meta">v0.6.2 &middot; 4.36 MB &middot; Apache 2.0</p>
+  <p class="welcome__meta" data-testid="welcome-meta">v{APP_VERSION} &middot; 4.39 MB &middot; Apache 2.0</p>
 
   <button
     type="button"

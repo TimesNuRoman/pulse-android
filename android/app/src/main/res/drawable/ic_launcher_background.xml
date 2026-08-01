@@ -1,11 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  R95b — Tokyo Night (#1a1b26) replaces the R76-era Material teal #26A69A.
+  The legacy raster ic_launcher.png (mipmap-hdpi/mdpi/xhdpi/xxhdpi/xxxhdpi)
+  is the fallback on Android 7+ devices that don't render the adaptive
+  icon. Modern (Android 8+) launchers read @color/ic_launcher_background
+  from values/ic_launcher_background.xml (already #1a1b26 since R81) and
+  use mipmap-anydpi-v26/. R95b keeps the legacy drawable in the same
+  palette as the adaptive icon so a user who downgrades to a v0.6.0 APK
+  on Android 7 still sees Tokyo Night, not teal.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportHeight="108"
     android:viewportWidth="108">
     <path
-        android:fillColor="#26A69A"
+        android:fillColor="#1a1b26"
         android:pathData="M0,0h108v108h-108z" />
     <path
         android:fillColor="#00000000"

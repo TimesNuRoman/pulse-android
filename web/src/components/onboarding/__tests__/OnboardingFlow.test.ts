@@ -85,10 +85,14 @@ describe('OnboardingFlow', () => {
     expect(screen.getByTestId('onboarding-track').getAttribute('data-direction')).toBe('back');
   });
 
-  it('Welcome screen shows v0.6.2 metadata and Apache 2.0 footer on last screen', async () => {
+  it('Welcome screen shows current APP_VERSION metadata and Apache 2.0 footer on last screen', async () => {
     render(OnboardingFlow, { props: { onComplete: vi.fn() } });
-    expect(screen.getByTestId('welcome-meta').textContent).toMatch(/v0\.6\.2/);
-    expect(screen.getByTestId('welcome-meta').textContent).toMatch(/Apache 2\.0/);
+    // R95b — meta line now reads from APP_VERSION (currently 0.6.5), not a
+    // hard-coded v0.6.2 string. This guard catches the next stale bump.
+    const meta = screen.getByTestId('welcome-meta').textContent ?? '';
+    expect(meta).toMatch(/v\d+\.\d+\.\d+/); // any semver-ish version
+    expect(meta).not.toMatch(/v0\.6\.2/); // no stale v0.6.2 leaks
+    expect(meta).toMatch(/Apache 2\.0/);
     await fireEvent.click(screen.getByTestId('welcome-cta'));
     await fireEvent.click(screen.getByTestId('capture-cta'));
     await fireEvent.click(screen.getByTestId('se3-cta'));

@@ -382,7 +382,8 @@
     padding: 4px;
   }
   .notes-view__mode-btn {
-    min-height: 36px;
+    min-height: var(--tn-touch-min, 44px); /* M3 — was 36px (R95b) */
+    min-width: var(--tn-touch-min, 44px);
     padding: 0 12px;
     border-radius: 6px;
     color: var(--tn-fg-dim, #9aa5ce);
@@ -447,7 +448,8 @@
     font-family: var(--tn-font-mono, monospace);
   }
   .notes-view__tag-input {
-    min-height: 32px;
+    min-height: var(--tn-touch-min, 44px); /* M3 — was 32px (R95b) */
+    min-width: var(--tn-touch-min, 44px);
     padding: 4px 10px;
     font-size: 13px;
     background: var(--tn-bg, #1a1b26);
@@ -485,7 +487,8 @@
     width: 100%;
     text-align: left;
     padding: 8px 12px;
-    min-height: 36px;
+    min-height: var(--tn-touch-min, 44px); /* M3 — was 36px (R95b) */
+    min-width: var(--tn-touch-min, 44px);
     color: var(--tn-fg, #c0caf5);
     background: transparent;
     border: 0;

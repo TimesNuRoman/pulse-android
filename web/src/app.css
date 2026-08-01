@@ -36,7 +36,11 @@
   --tn-radius-lg: 20px;
 
   /* Typography */
-  --tn-font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+  /* R95b — system-ui first per Roman's rule. On macOS/iOS system-ui
+     resolves to the same San Francisco as -apple-system; on Android it
+     wins over Roboto, on Windows it wins over Segoe UI. The previous
+     order (-apple-system, …, system-ui) buried the rule token at #5. */
+  --tn-font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --tn-font-mono: 'JetBrains Mono', 'Fira Code', Consolas, 'SF Mono', monospace;
   --tn-font-body: 16px;
   --tn-font-mono-body: 15px;
