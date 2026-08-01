@@ -1,0 +1,19 @@
+{
+  "latest_version": "0.6.0",
+  "latest_version_code": 10,
+  "latest_apk_url": "https://ozfg792b0bote.space.minimax.io/downloads/pulse-notes-0.6.0-greenfield-debug.apk",
+  "latest_apk_size_bytes": 4533220,
+  "latest_apk_sha256": "C1C89093583E7AD45397AC7284EB86F1315F8914119A0D3AFF3551F9EC92CD86",
+  "release_notes_url": "https://43tvymaa8ovsx.space.minimax.io/changelog/#v0.6.0",
+  "min_supported_version": "0.3.0",
+  "force_update_below": "0.3.0",
+  "versions": [
+    {
+      "version": "0.6.0",
+      "version_code": 10,
+      "date": "2026-08-01",
+      "type": "major",
+      "summary": "GREENFIELD: Pulse Notes markdown editor on Android (CodeMirror 6, split-pane, backlinks, tag autocomplete)"
+    }
+  ]
+}
