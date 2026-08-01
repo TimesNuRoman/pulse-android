@@ -1,0 +1,33 @@
+# Node
+node_modules/
+.npm/
+
+# Android build outputs
+android/.gradle/
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/build/
+android/capacitor-cordova-android-plugins/.gradle/
+android/local.properties
+
+# Capacitor web build
+www/
+.astro/
+
+# Logs
+*.log
+cap-sync-*.log
+gradle-app.log
+gradle-build.log
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+$RECYCLE.BIN/
+
+# Env
+.env
+.env.local
