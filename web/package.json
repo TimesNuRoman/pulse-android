@@ -1,6 +1,6 @@
 {
   "name": "pulse-notes-web",
-  "version": "0.6.4",
+  "version": "0.6.5",
   "private": true,
   "description": "Pulse Notes — markdown editor web bundle for Capacitor 8 Android wrapper.",
   "type": "module",

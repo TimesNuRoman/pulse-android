@@ -16,6 +16,14 @@
  * entry in the chain is the env override (so a future build can
  * pin to a single host), the rest are the recent canonical hosts.
  *
+ * R93: v0.6.3 → v0.6.4 update path was architecturally broken (v0.6.3
+ * APK's `DEFAULT_MANIFEST_URL` was a single URL, not the chain, so it
+ * kept polling the retired R87 host and never saw v0.6.4). v0.6.5 is
+ * the bridge release — the chain now starts with R92's `yv5eeknt6h6sa`
+ * (the new full-site canonical from R92 site-sync) so v0.6.5+ devices
+ * can auto-update forward. v0.6.3 / v0.6.4 users still need to
+ * side-load v0.6.5 (see the release-notes-v0.6.5 page on the site).
+ *
  * Manifest schema (matches the deployed R87 host, with brief's flat
  * aliases as fallbacks for forward-compat):
  *   {
@@ -47,8 +55,8 @@ import { isNative } from '$lib/capacitor';
 // ---------- Constants ----------
 
 /** Build-time version. Bump alongside android/app/build.gradle. */
-export const APP_VERSION = '0.6.4';
-export const APP_VERSION_CODE = 14;
+export const APP_VERSION = '0.6.5';
+export const APP_VERSION_CODE = 15;
 
 /**
  * Default manifest URL. Retained for backward compat with R88 callers
@@ -74,8 +82,13 @@ export const DEFAULT_MANIFEST_URL =
  * is the long-term fix; this chain is the bridge.
  */
 export const DEFAULT_MANIFEST_URLS: readonly string[] = [
-  // R88 canonical (the host v0.6.3 APK's env-override could not reach
-  // because the env override was hard-coded to R87's host).
+  // R92 (v0.6.5 — new full-site canonical; this is the bridge entry
+  // that lets v0.6.5+ devices auto-update forward even if R90 / R88
+  // hosts go down).
+  'https://yv5eeknt6h6sa.space.minimax.io/updates/android.json',
+  // R90 (v0.6.4 — chain originator, R90 had the first multi-host chain).
+  'https://ad67rp710vsl7.space.minimax.io/updates/android.json',
+  // R88 (v0.6.3).
   'https://32dhrw35m4x2v.space.minimax.io/updates/android.json',
   // R87 (the host baked into the v0.6.3 APK — kept for one more release).
   'https://hrkbksh0x0xz4.space.minimax.io/updates/android.json',

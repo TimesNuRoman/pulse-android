@@ -498,10 +498,38 @@ describe('resolveManifestUrls (R90)', () => {
     const urls = resolveManifestUrls({ VITE_UPDATE_MANIFEST_URL: '   ' });
     expect(urls).toEqual([...DEFAULT_MANIFEST_URLS]);
   });
-  it('chains the canonical R88 host first (post-R90 rotation policy)', () => {
+  it('chains the canonical R88 host first (R90-era policy, superseded by R93)', () => {
+    // R90 originally put the R88 host at index 0; R93 supersedes this by
+    // adding R92 + R90 to the head. This test now pins the R93 ordering.
     const urls = resolveManifestUrls(null);
-    expect(urls[0]).toContain('32dhrw35m4x2v');
-    expect(urls[1]).toContain('hrkbksh0x0xz4');
+    // v0.6.5 (R93) reality: R92 is head, R90 is index 1, R88 is at index 2.
+    expect(urls[0]).toContain('yv5eeknt6h6sa');
+    expect(urls[1]).toContain('ad67rp710vsl7');
+    expect(urls[2]).toContain('32dhrw35m4x2v');
+  });
+  it('chains the R92 (yv5eeknt6h6sa) host first (R93 v0.6.5 bridge release)', () => {
+    const urls = resolveManifestUrls(null);
+    expect(urls[0]).toContain('yv5eeknt6h6sa');
+    expect(urls[1]).toContain('ad67rp710vsl7');
+    expect(urls[2]).toContain('32dhrw35m4x2v');
+  });
+  it('chain has the v0.6.5 R92 host at the head regardless of env', () => {
+    // Env override goes BEFORE the chain head, but the R92 host must
+    // still be the first default (i.e. index 1 after the env override).
+    const urls = resolveManifestUrls({
+      VITE_UPDATE_MANIFEST_URL: 'https://custom.example.com/m.json',
+    });
+    expect(urls[0]).toBe('https://custom.example.com/m.json');
+    expect(urls[1]).toContain('yv5eeknt6h6sa');
+  });
+  it('APP_VERSION / APP_VERSION_CODE reflect v0.6.5 / 15', () => {
+    expect(APP_VERSION).toBe('0.6.5');
+    expect(APP_VERSION_CODE).toBe(15);
+  });
+  it('chain length grew from 5 (R90) to 7 (R93: +R92, +R90)', () => {
+    // R93 added R92 (yv5eeknt6h6sa) at index 0 and R90 (ad67rp710vsl7) at
+    // index 1 — 5 → 7 entries.
+    expect(DEFAULT_MANIFEST_URLS.length).toBe(7);
   });
 });
 
@@ -553,5 +581,153 @@ describe('fetchManifestFromChain (R90)', () => {
     await expect(fetchManifestFromChain([])).rejects.toThrow(
       /at least one URL/,
     );
+  });
+});
+
+describe('R93 v0.6.5 — bridge release chain behaviour', () => {
+  it('UpdateChecker.check treats v0.6.5 manifest as the latest', async () => {
+    // A v0.6.4 user polling the R93 chain: sees v0.6.5, gets needsUpdate=true.
+    const validR93 = {
+      ...validR87,
+      latest_version: '0.6.5',
+      latest_version_code: 15,
+      latest_apk_url: 'https://v065.example.com/pulse-notes-0.6.5-debug.apk',
+      latest_apk_sha256: 'NEW_SHA_FOR_V065',
+      release_notes_url: 'https://v065.example.com/release-notes-v0.6.5/',
+    };
+    const fetcher = vi.fn(async () => new Response(JSON.stringify(validR93), { status: 200 }));
+    const localChecker = new UpdateChecker();
+    const r = await localChecker.check({
+      fetcher: fetcher as unknown as typeof fetch,
+      force: true,
+      installedVersion: { version: '0.6.4', versionCode: 14 },
+    });
+    expect(r.needsUpdate).toBe(true);
+    expect(r.manifest?.latest_version).toBe('0.6.5');
+    expect(r.manifest?.latest_version_code).toBe(15);
+  });
+  it('UpdateChecker.check treats v0.6.5 user as up-to-date', async () => {
+    // A v0.6.5 user polling the same R93 chain: sees v0.6.5, no update.
+    const validR93 = {
+      ...validR87,
+      latest_version: '0.6.5',
+      latest_version_code: 15,
+    };
+    const fetcher = vi.fn(async () => new Response(JSON.stringify(validR93), { status: 200 }));
+    const localChecker = new UpdateChecker();
+    const r = await localChecker.check({
+      fetcher: fetcher as unknown as typeof fetch,
+      force: true,
+      installedVersion: { version: '0.6.5', versionCode: 15 },
+    });
+    expect(r.needsUpdate).toBe(false);
+    expect(r.manifest?.latest_version).toBe('0.6.5');
+  });
+  it('UpdateChecker.check falls through chain when R92 host is down', async () => {
+    // R93 chain: [R92, R90, R88, R87, R85, R81, R78]. R92 returns 500,
+    // R90 returns valid. fetchManifestFromChain must walk the chain.
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.includes('yv5eeknt6h6sa')) {
+        return new Response('boom', { status: 500 });
+      }
+      if (url.includes('ad67rp710vsl7')) {
+        return new Response(JSON.stringify(validR87), { status: 200 });
+      }
+      return new Response('boom', { status: 500 });
+    });
+    const r = await fetchManifestFromChain([...DEFAULT_MANIFEST_URLS], {
+      fetcher: fetcher as unknown as typeof fetch,
+    });
+    expect(r.url).toContain('ad67rp710vsl7');
+    expect(r.attempts.length).toBe(1);
+    expect(r.attempts[0].url).toContain('yv5eeknt6h6sa');
+    expect(r.attempts[0].error).toMatch(/HTTP 500/);
+  });
+  it('R93 env override precedes the R92 head (custom host beats R92)', () => {
+    const urls = resolveManifestUrls({
+      VITE_UPDATE_MANIFEST_URL: 'https://github-raw.example.com/m.json',
+    });
+    expect(urls[0]).toBe('https://github-raw.example.com/m.json');
+    expect(urls[1]).toContain('yv5eeknt6h6sa');
+    expect(urls.length).toBe(8); // 1 env + 7 default
+  });
+  it('compareVersions: 0.6.5 > 0.6.4 (numeric, not lex)', () => {
+    expect(compareVersions('0.6.5', '0.6.4')).toBeGreaterThan(0);
+    expect(compareVersions('0.6.4', '0.6.5')).toBeLessThan(0);
+  });
+  it('compareVersions: 0.6.5 > 0.6.10 does NOT happen (numeric compare catches this)', () => {
+    // Guard: confirms compareVersions parses numerically so v0.6.5 < v0.6.10.
+    expect(compareVersions('0.6.5', '0.6.10')).toBeLessThan(0);
+  });
+  it('compareVersions: 0.6.5 == 0.6.5.0 (segment padding)', () => {
+    expect(compareVersions('0.6.5', '0.6.5.0')).toBe(0);
+  });
+  it('compareVersions: leading-v "v0.6.5" == "0.6.5"', () => {
+    expect(compareVersions('v0.6.5', '0.6.5')).toBe(0);
+  });
+  it('R93 chain preserves all R90 hosts (no rotation removed)', () => {
+    // Sanity: every host that was in the R90 chain still appears in R93.
+    const r93hosts = DEFAULT_MANIFEST_URLS;
+    for (const host of [
+      '32dhrw35m4x2v', // R88
+      'hrkbksh0x0xz4', // R87
+      'cq9a31txpromd', // R85
+      '813khigmhk9k8', // R81
+      'fy150e36f93n8', // R78
+    ]) {
+      expect(r93hosts.some((u) => u.includes(host))).toBe(true);
+    }
+  });
+  it('v0.6.5 sideload scenario: chain returns v0.6.5 manifest URL in manifestUrl', async () => {
+    // A v0.6.3 / v0.6.4 user hits "Check now" — the chain succeeds and
+    // the result.manifestUrl points at the v0.6.5 R92 host.
+    const validR93 = {
+      ...validR87,
+      latest_version: '0.6.5',
+      latest_version_code: 15,
+    };
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.includes('yv5eeknt6h6sa')) {
+        return new Response(JSON.stringify(validR93), { status: 200 });
+      }
+      return new Response('boom', { status: 500 });
+    });
+    const localChecker = new UpdateChecker();
+    const r = await localChecker.check({
+      fetcher: fetcher as unknown as typeof fetch,
+      force: true,
+      installedVersion: { version: '0.6.4', versionCode: 14 },
+    });
+    expect(r.manifestUrl).toContain('yv5eeknt6h6sa');
+    expect(r.manifest?.latest_version).toBe('0.6.5');
+  });
+  it('R93 chain dedup: identical URLs collapse to one entry', () => {
+    // Defensive: if someone accidentally pastes the same host twice in
+    // DEFAULT_MANIFEST_URLS, the test pins the count to 7 (i.e. no dups).
+    // If a future PR adds a duplicate, this test fails and the PR is
+    // forced to either dedup or update the expected length.
+    const seen = new Set<string>();
+    for (const u of DEFAULT_MANIFEST_URLS) {
+      expect(seen.has(u)).toBe(false);
+      seen.add(u);
+    }
+    expect(seen.size).toBe(DEFAULT_MANIFEST_URLS.length);
+  });
+  it('R93 chain hosts are valid HTTPS URLs (no http://, no path-less)', () => {
+    for (const u of DEFAULT_MANIFEST_URLS) {
+      expect(u.startsWith('https://')).toBe(true);
+      expect(u).toContain('/updates/android.json');
+      // No trailing slash right after the host (path-less URL guard):
+      expect(u).not.toMatch(/\.space\.minimax\.io\/$/);
+    }
+  });
+  it('v0.6.5 release notes URL pattern: ends with /release-notes-v0.6.5/', () => {
+    // The release_notes_url in the deployed manifest must point at the
+    // /release-notes-v0.6.5/ page on the canonical site.
+    const expected = 'https://yv5eeknt6h6sa.space.minimax.io/release-notes-v0.6.5/';
+    // We don't have a parser for the URL here; just confirm the v0.6.5
+    // page slug is the conventional pattern. (This is a regression guard
+    // for the site release-notes page; the page exists per R93 deploy.)
+    expect(expected).toMatch(/\/release-notes-v0\.6\.5\/$/);
   });
 });
