@@ -1,6 +1,8 @@
-# Pulse Android (Capacitor 8 wrapper)
+# Pulse Notes — Android (Capacitor 8 wrapper)
 
-Pulse — Tauri v2 desktop app, но тот же web bundle работает и в Capacitor Android-обёртке. Этот проект — Android-итерация.
+Pulse Notes — markdown editor built for Android from scratch (Svelte 5 + TypeScript + CodeMirror 6).
+Этот проект — Android-итерация: Capacitor 8 оборачивает тот же web bundle, что используется
+в `pulse-desktop` (Tauri v2) и публикуется через `pulse-landing`.
 
 ## Структура
 
@@ -12,8 +14,9 @@ pulse-android/
 └── android/                 # нативный Android-проект (создаётся cap add)
 ```
 
-**App ID**: `ai.pulse.android` (новый, рядом со старым `app.pulse.local`).
-**App name**: `Pulse`.
+**App ID**: `app.pulse.notes` (see `android/app/build.gradle` and `capacitor.config.json`).
+**App name**: `Pulse Notes` (see `android/app/src/main/res/values/strings.xml`).
+**License**: Apache 2.0 — see `LICENSE` at the repo root.
 
 ## Как пересобрать
 
