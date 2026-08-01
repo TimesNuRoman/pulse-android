@@ -1,13 +1,20 @@
 {
-  "latest_version": "0.6.2",
-  "latest_version_code": 12,
-  "latest_apk_url": "https://wztgxiy1eu29i.space.minimax.io/pulse-notes-0.6.2-debug.apk",
-  "latest_apk_size_bytes": 4551289,
-  "latest_apk_sha256": "2F8BB21841763705C34FDA9DE1281A75029D524AB212F55E48C6BD7A9A288F60",
-  "release_notes_url": "https://wztgxiy1eu29i.space.minimax.io/#v0.6.2",
+  "latest_version": "0.6.3",
+  "latest_version_code": 13,
+  "latest_apk_url": "https://mcghfqe6bv7p8.space.minimax.io/downloads/pulse-notes-0.6.3-debug.apk",
+  "latest_apk_size_bytes": 4555721,
+  "latest_apk_sha256": "8E2321EF45D1CBE81D3FF52F48F5CC3EF6EABEAF9B9A8CB61932D4D9A33722C9",
+  "release_notes_url": "https://mcghfqe6bv7p8.space.minimax.io/#v0.6.3",
   "min_supported_version": "0.3.0",
   "force_update_below": "0.3.0",
   "versions": [
+    {
+      "version": "0.6.3",
+      "version_code": 13,
+      "date": "2026-08-01",
+      "type": "minor",
+      "summary": "In-app UpdateChecker revival (R52 lost in R73 mavis-trash + R77 reset). Polls remote manifest, surfaces M3 dialog with force-update support, SHA-256 fingerprint, release-notes link, and 24h cache TTL."
+    },
     {
       "version": "0.6.2",
       "version_code": 12,

@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import NotesView from './views/NotesView.svelte';
   import OnboardingFlow from './components/onboarding/OnboardingFlow.svelte';
+  import UpdateCheckerMount from './lib/update-checker/UpdateCheckerMount.svelte';
   import { readPersistedCompleted } from './components/onboarding/onboardingStore';
 
   let onboarded = $state(false);
@@ -24,6 +25,9 @@
     <NotesView />
   {:else}
     <OnboardingFlow onComplete={handleComplete} />
+  {/if}
+  {#if ready}
+    <UpdateCheckerMount />
   {/if}
 </main>
 
