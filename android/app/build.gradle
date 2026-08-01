@@ -1,5 +1,19 @@
 apply plugin: 'com.android.application'
 
+// Load release signing credentials from app/keystore.properties (gitignored).
+// If the file is missing, we fall back to the debug keystore so that
+// contributors can still run `gradlew assembleRelease` for layout checks
+// without producing a publishable artifact. The real release pipeline
+// (Play Store / F-Droid) MUST have keystore.properties present.
+def keystorePropertiesFile = rootProject.file("app/keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+    logger.lifecycle("R93b: loaded keystore.properties (alias=${keystoreProperties['keyAlias']}, storeFile=${keystoreProperties['storeFile']})")
+} else {
+    logger.info("R93b: app/keystore.properties not found; release builds will use the debug signing config as a fallback. See ../RELEASE.md.")
+}
+
 android {
     namespace = "app.pulse.notes"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,10 +30,36 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        // Real release signing: loaded from app/keystore.properties.
+        // NEVER hardcode passwords here. NEVER commit keystore.properties.
+        release {
+            if (keystorePropertiesFile.exists()) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
-            minifyEnabled false
+            // Use the real release signing config when keystore.properties is present.
+            // Otherwise leave it unset so AGP fails loudly instead of silently
+            // producing an unsigned APK that nobody can install.
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
+            }
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            // Unchanged: debug builds remain self-contained for side-loading.
+            // No regression for the v0.6.4 debug APK pipeline.
+            debuggable true
         }
     }
 }
