@@ -17,12 +17,15 @@ import {
   shouldPromptUpdate,
   parseManifest,
   fetchManifest,
+  fetchManifestFromChain,
   UpdateChecker,
   resolveManifestUrl,
+  resolveManifestUrls,
   resolveInstalledVersion,
   APP_VERSION,
   APP_VERSION_CODE,
   DEFAULT_MANIFEST_URL,
+  DEFAULT_MANIFEST_URLS,
   CACHE_TTL_MS,
 } from '../update-checker';
 
@@ -324,20 +327,26 @@ describe('UpdateChecker.check', () => {
     await checker.check({ fetcher: fetcher as unknown as typeof fetch, force: true });
     const before = checker.readCache();
     expect(before).not.toBeNull();
-    // Rewind checkedAt to make the change visible.
-    if (before) {
-      localStorage.setItem(
-        'pulse.update_checker.v1',
-        JSON.stringify({ ...before, checkedAt: before.checkedAt - 5000 }),
-      );
-    }
-    await checker.markSeen();
+    if (!before) return;
+    // Rewind checkedAt by 5000ms to make the markSeen move visible.
+    const rewound = before.checkedAt - 5000;
+    localStorage.setItem(
+      'pulse.update_checker.v1',
+      JSON.stringify({ ...before, checkedAt: rewound }),
+    );
+    // Pass a `now` seam so the test is deterministic regardless of
+    // wall-clock resolution (Date.now() can return the same value on
+    // back-to-back reads within a single ms — the original assertion
+    // was flaky in CI).
+    const advancedNow = before.checkedAt + 1000;
+    await checker.markSeen(() => advancedNow);
     const after = checker.readCache();
     expect(after).not.toBeNull();
-    if (after && before) {
-      // markSeen should have moved checkedAt forward by at least 4000ms
-      // (we rewound 5000ms).
-      expect(after.checkedAt).toBeGreaterThan(before.checkedAt);
+    if (after) {
+      // markSeen moves forward past the rewound value AND past the
+      // simulated wall-clock tick.
+      expect(after.checkedAt).toBeGreaterThan(rewound);
+      expect(after.checkedAt).toBe(advancedNow);
     }
   });
 
@@ -365,5 +374,184 @@ describe('UpdateChecker.check', () => {
     resolveFetch?.(new Response(JSON.stringify(validR87), { status: 200 }));
     const [r1, r2] = await Promise.all([p1, p2]);
     expect(r1).toBe(r2);
+  });
+
+  it('uses the first URL in the chain and reports manifestUrl (R90)', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify(validR87), { status: 200 }));
+    const r = await checker.check({
+      fetcher: fetcher as unknown as typeof fetch,
+      force: true,
+      urls: ['https://a.example.com/m.json', 'https://b.example.com/m.json'],
+    });
+    expect(r.manifestUrl).toBe('https://a.example.com/m.json');
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(r.manifest?.latest_version).toBe('0.6.2');
+  });
+
+  it('falls back through the chain when the first URL returns 404 (R90)', async () => {
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.startsWith('https://a.example.com')) {
+        return new Response('not found', { status: 404 });
+      }
+      return new Response(JSON.stringify(validR87), { status: 200 });
+    });
+    const r = await checker.check({
+      fetcher: fetcher as unknown as typeof fetch,
+      force: true,
+      urls: ['https://a.example.com/m.json', 'https://b.example.com/m.json'],
+    });
+    expect(r.manifestUrl).toBe('https://b.example.com/m.json');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(r.manifest?.latest_version).toBe('0.6.2');
+    // The fallback note is appended to error so testers can see "after N failed".
+    expect(r.error).toMatch(/1 failed/);
+  });
+
+  it('falls back through the chain when the first URL returns invalid JSON (R90)', async () => {
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.startsWith('https://a.example.com')) {
+        return new Response('not json', { status: 200 });
+      }
+      return new Response(JSON.stringify(validR87), { status: 200 });
+    });
+    const r = await checker.check({
+      fetcher: fetcher as unknown as typeof fetch,
+      force: true,
+      urls: ['https://a.example.com/m.json', 'https://b.example.com/m.json'],
+    });
+    expect(r.manifestUrl).toBe('https://b.example.com/m.json');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('falls back through the chain when the first URL times out (R90)', async () => {
+    // Simulate a timeout by raising an AbortError on the first URL.
+    // The production code's setTimeout-based abort is internal; we
+    // verify the chain's tolerance by throwing the same kind of
+    // error the AbortController produces when it fires.
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.startsWith('https://a.example.com')) {
+        const err = new Error('The operation was aborted');
+        err.name = 'AbortError';
+        throw err;
+      }
+      return new Response(JSON.stringify(validR87), { status: 200 });
+    });
+    const r = await checker.check({
+      fetcher: fetcher as unknown as typeof fetch,
+      force: true,
+      urls: ['https://a.example.com/m.json', 'https://b.example.com/m.json'],
+    });
+    expect(r.manifestUrl).toBe('https://b.example.com/m.json');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(r.manifest?.latest_version).toBe('0.6.2');
+  });
+
+  it('returns needsUpdate=false and no manifest when ALL URLs in the chain fail (R90)', async () => {
+    const fetcher = vi.fn(async () => new Response('boom', { status: 500 }));
+    const r = await checker.check({
+      fetcher: fetcher as unknown as typeof fetch,
+      force: true,
+      urls: ['https://a.example.com/m.json', 'https://b.example.com/m.json', 'https://c.example.com/m.json'],
+    });
+    expect(r.needsUpdate).toBe(false);
+    expect(r.manifest).toBeNull();
+    expect(r.manifestUrl).toBeNull();
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(r.error).toMatch(/All 3 manifest URLs failed/);
+  });
+
+  it('honors a single-URL `url` option as a one-element chain (backward compat, R90)', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify(validR87), { status: 200 }));
+    const r = await checker.check({
+      fetcher: fetcher as unknown as typeof fetch,
+      force: true,
+      url: 'https://legacy.example.com/m.json',
+    });
+    expect(r.manifestUrl).toBe('https://legacy.example.com/m.json');
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('resolveManifestUrls (R90)', () => {
+  it('returns the default chain when env is null', () => {
+    const urls = resolveManifestUrls(null);
+    expect(urls).toEqual([...DEFAULT_MANIFEST_URLS]);
+  });
+  it('returns the default chain when env is empty', () => {
+    const urls = resolveManifestUrls({});
+    expect(urls).toEqual([...DEFAULT_MANIFEST_URLS]);
+  });
+  it('puts the env override at the head of the chain', () => {
+    const urls = resolveManifestUrls({
+      VITE_UPDATE_MANIFEST_URL: 'https://custom.example.com/m.json',
+    });
+    expect(urls[0]).toBe('https://custom.example.com/m.json');
+    expect(urls.length).toBe(DEFAULT_MANIFEST_URLS.length + 1);
+  });
+  it('trims whitespace from the env override', () => {
+    const urls = resolveManifestUrls({
+      VITE_UPDATE_MANIFEST_URL: '  https://x.example.com/m.json  ',
+    });
+    expect(urls[0]).toBe('https://x.example.com/m.json');
+  });
+  it('falls back to the default chain when the env override is empty/whitespace', () => {
+    const urls = resolveManifestUrls({ VITE_UPDATE_MANIFEST_URL: '   ' });
+    expect(urls).toEqual([...DEFAULT_MANIFEST_URLS]);
+  });
+  it('chains the canonical R88 host first (post-R90 rotation policy)', () => {
+    const urls = resolveManifestUrls(null);
+    expect(urls[0]).toContain('32dhrw35m4x2v');
+    expect(urls[1]).toContain('hrkbksh0x0xz4');
+  });
+});
+
+describe('fetchManifestFromChain (R90)', () => {
+  it('returns the first successful URL with no fallback note when first wins', async () => {
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.startsWith('https://a.example.com')) {
+        return new Response(JSON.stringify(validR87), { status: 200 });
+      }
+      return new Response('boom', { status: 500 });
+    });
+    const r = await fetchManifestFromChain(
+      ['https://a.example.com/m.json', 'https://b.example.com/m.json'],
+      { fetcher: fetcher as unknown as typeof fetch },
+    );
+    expect(r.url).toBe('https://a.example.com/m.json');
+    expect(r.attempts).toEqual([]);
+    expect(r.manifest.latest_version).toBe('0.6.2');
+  });
+
+  it('records the per-URL failure attempts when a fallback is used', async () => {
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.startsWith('https://a.example.com')) {
+        return new Response('not found', { status: 404 });
+      }
+      return new Response(JSON.stringify(validR87), { status: 200 });
+    });
+    const r = await fetchManifestFromChain(
+      ['https://a.example.com/m.json', 'https://b.example.com/m.json'],
+      { fetcher: fetcher as unknown as typeof fetch },
+    );
+    expect(r.url).toBe('https://b.example.com/m.json');
+    expect(r.attempts.length).toBe(1);
+    expect(r.attempts[0].url).toBe('https://a.example.com/m.json');
+    expect(r.attempts[0].error).toMatch(/HTTP 404/);
+  });
+
+  it('throws with a summary of all failures when no URL succeeds', async () => {
+    const fetcher = vi.fn(async () => new Response('boom', { status: 500 }));
+    await expect(
+      fetchManifestFromChain(
+        ['https://a.example.com/m.json', 'https://b.example.com/m.json'],
+        { fetcher: fetcher as unknown as typeof fetch },
+      ),
+    ).rejects.toThrow(/All 2 manifest URLs failed.*HTTP 500.*HTTP 500/);
+  });
+
+  it('throws immediately on an empty URL list', async () => {
+    await expect(fetchManifestFromChain([])).rejects.toThrow(
+      /at least one URL/,
+    );
   });
 });

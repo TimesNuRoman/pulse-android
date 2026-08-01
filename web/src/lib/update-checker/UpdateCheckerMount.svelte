@@ -40,6 +40,7 @@
         fromCache: false,
         checkedAt: Date.now(),
         error: 'check failed',
+        manifestUrl: null,
       };
     }
   }
