@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:canonical": "node ../scripts/run-vitest-canonical.mjs"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^4.0.0",

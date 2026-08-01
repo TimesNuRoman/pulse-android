@@ -1,13 +1,20 @@
 {
-  "latest_version": "0.6.0",
-  "latest_version_code": 10,
-  "latest_apk_url": "https://ozfg792b0bote.space.minimax.io/downloads/pulse-notes-0.6.0-greenfield-debug.apk",
-  "latest_apk_size_bytes": 4533220,
-  "latest_apk_sha256": "C1C89093583E7AD45397AC7284EB86F1315F8914119A0D3AFF3551F9EC92CD86",
-  "release_notes_url": "https://43tvymaa8ovsx.space.minimax.io/changelog/#v0.6.0",
+  "latest_version": "0.6.1",
+  "latest_version_code": 11,
+  "latest_apk_url": "https://artvenwyvbi7p.space.minimax.io/downloads/pulse-notes-0.6.1-greenfield-debug.apk",
+  "latest_apk_size_bytes": 4545673,
+  "latest_apk_sha256": "DBECA01B4A84BE03C9AADDC1E17E98E933F0C36A6021A205070472AB549C9F67",
+  "release_notes_url": "https://kzgoiplukbnzs.space.minimax.io/changelog/#v0.6.1",
   "min_supported_version": "0.3.0",
   "force_update_below": "0.3.0",
   "versions": [
+    {
+      "version": "0.6.1",
+      "version_code": 11,
+      "date": "2026-08-01",
+      "type": "minor",
+      "summary": "Adaptive app icon (Tokyo Night blue P+spark) + M3 splash screen (no white flash, dark)"
+    },
     {
       "version": "0.6.0",
       "version_code": 10,

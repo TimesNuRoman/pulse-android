@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  R81 — Pulse Notes colors. Tokyo Night palette.
+  - ic_launcher_background is in its own file (mipmap-anydpi-v26 expects
+    @color/ic_launcher_background by name).
+  - splash_bg is referenced by AppTheme.NoActionBarLaunch to prevent
+    a white flash before the WebView loads.
+  - colorPrimary / colorPrimaryDark / colorAccent keep styles.xml happy.
+-->
+<resources>
+    <color name="splash_bg">#1a1b26</color>
+    <color name="colorPrimary">#7aa2f7</color>
+    <color name="colorPrimaryDark">#1a1b26</color>
+    <color name="colorAccent">#bb9af7</color>
+    <color name="window_bg">#1a1b26</color>
+</resources>

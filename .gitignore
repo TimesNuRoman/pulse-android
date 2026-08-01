@@ -13,6 +13,7 @@ android/local.properties
 # Capacitor web build
 www/
 .astro/
+web/dist/
 
 # Logs
 *.log
