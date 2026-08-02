@@ -4,6 +4,7 @@
   import NoteToolbar, { type ToolbarAction } from '../components/notes/NoteToolbar.svelte';
   import TagAutocomplete from '../components/notes/TagAutocomplete.svelte';
   import SplitPane from '../components/notes/SplitPane.svelte';
+  import SettingsView from './SettingsView.svelte';
   import { notesStore, sortedNotes, allTags, backlinkIndex } from '../lib/notesStore';
   import { extractBacklinks, extractTags, type Note } from '../lib/notesBacklinks';
   import { share, copyToClipboard, hapticImpact } from '../lib/capacitor';
@@ -11,7 +12,13 @@
   type Mode = 'source' | 'preview' | 'split';
   type View = 'list' | 'note';
 
+  interface Props {
+    onReplayOnboarding?: () => void;
+  }
+  let { onReplayOnboarding }: Props = $props();
+
   let view: View = $state('list');
+  let settingsOpen: boolean = $state(false);
   let activeNoteId: string | null = $state(null);
   let mode: Mode = $state('split');
   let saveState: 'idle' | 'saving' | 'saved' = $state('idle');
@@ -22,6 +29,19 @@
   let tagPopupOpen: boolean = $state(false);
   let tagQuery: string = $state('');
   let tagAnchor: 'top' | 'bottom' = $state('top');
+
+  function openSettings(): void {
+    void hapticImpact({ light: true });
+    settingsOpen = true;
+  }
+  function closeSettings(): void {
+    void hapticImpact({ light: true });
+    settingsOpen = false;
+  }
+  function replayOnboarding(): void {
+    settingsOpen = false;
+    onReplayOnboarding?.();
+  }
 
   // Derived
   const activeNote: Note | undefined = $derived(
@@ -152,11 +172,40 @@
 </script>
 
 <main class="notes-view" data-testid="notes-view" data-view={view}>
-  {#if view === 'list'}
+  {#if settingsOpen}
+    <SettingsView onBack={closeSettings} onReplayOnboarding={replayOnboarding} />
+  {:else if view === 'list'}
     <header class="notes-view__header">
       <h1 class="notes-view__title">Pulse Notes</h1>
       <button type="button" class="btn btn--primary" onclick={createNote} data-testid="new-note">
         New note
+      </button>
+      <button
+        type="button"
+        class="btn btn--ghost notes-view__gear"
+        onclick={openSettings}
+        data-testid="open-settings"
+        aria-label="Open settings"
+        title="Settings"
+      >
+        <svg
+          class="notes-view__gear-icon"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="3" />
+          <path
+            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+          />
+        </svg>
+        <span class="sr-only">Settings</span>
       </button>
     </header>
     <ul class="notes-view__list" data-testid="notes-list">
@@ -250,7 +299,11 @@
       </button>
     </header>
 
-    <NoteToolbar onAction={onToolbarAction} disabled={mode === 'preview'} />
+    <NoteToolbar
+      onAction={onToolbarAction}
+      disabled={mode === 'preview'}
+      activeNoteId={activeNoteId}
+    />
 
     <div class="notes-view__body" data-mode={mode}>
       {#if mode === 'split'}
@@ -363,6 +416,17 @@
     margin: 0;
     font-size: 20px;
     flex: 1;
+  }
+  .notes-view__gear {
+    min-width: var(--tn-touch-min, 44px);
+    min-height: var(--tn-touch-min, 44px);
+    padding: 0 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .notes-view__gear-icon {
+    display: block;
   }
   .notes-view__header--note {
     flex-wrap: wrap;

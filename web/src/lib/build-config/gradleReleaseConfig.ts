@@ -29,6 +29,10 @@ export interface GradleReleaseConfigCheck {
   hasFallbackForMissingKeystore: boolean;
   neverHardcodesPassword: boolean;
   hasNoHardcodedStorePasswordLiteral: boolean;
+  /** Parsed `versionName "X.Y.Z"` from defaultConfig, or null if missing. */
+  versionName: string | null;
+  /** Parsed `versionCode N` from defaultConfig, or null if missing. */
+  versionCode: number | null;
 }
 
 const PROJECT_ROOT = resolve(__dirname, '..', '..', '..');
@@ -103,6 +107,14 @@ export function readGradleReleaseConfig(): GradleReleaseConfigCheck | null {
     !/storePassword\s+['"][^'"]+['"]/.test(src);
   const neverHardcodesPassword = hasNoHardcodedStorePasswordLiteral;
 
+  // versionName "X.Y.Z" inside defaultConfig (R96 — pinned to the
+  // release that the helper is shipped alongside).
+  const versionNameMatch = src.match(/versionName\s+"([^"]+)"/);
+  const versionName = versionNameMatch ? versionNameMatch[1] : null;
+  // versionCode N (integer literal) inside defaultConfig.
+  const versionCodeMatch = src.match(/versionCode\s+(\d+)/);
+  const versionCode = versionCodeMatch ? parseInt(versionCodeMatch[1], 10) : null;
+
   return {
     hasSigningConfigsRelease,
     readsKeystoreProperties,
@@ -114,6 +126,8 @@ export function readGradleReleaseConfig(): GradleReleaseConfigCheck | null {
     hasFallbackForMissingKeystore,
     neverHardcodesPassword,
     hasNoHardcodedStorePasswordLiteral,
+    versionName,
+    versionCode,
   };
 }
 

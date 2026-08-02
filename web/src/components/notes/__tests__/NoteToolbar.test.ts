@@ -1,19 +1,43 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/svelte';
 import NoteToolbar from '../NoteToolbar.svelte';
+
+// Hoisted mocks for the recognition module so the toolbar can import
+// `$lib/voice/recognition` without pulling in the real window.Capacitor globals.
+const { isAvailable, start, stop } = vi.hoisted(() => ({
+  isAvailable: vi.fn(),
+  start: vi.fn(),
+  stop: vi.fn(),
+}));
+
+vi.mock('$lib/voice/recognition', () => ({
+  isAvailable,
+  start,
+  stop,
+}));
 
 describe('NoteToolbar', () => {
   afterEach(cleanup);
 
-  it('renders 7 tool buttons', () => {
-    render(NoteToolbar, { props: { onAction: vi.fn() } });
-    const buttons = screen.getAllByRole('button');
-    expect(buttons.length).toBe(7);
+  beforeEach(() => {
+    isAvailable.mockReset();
+    start.mockReset();
+    stop.mockReset();
+    // default: recognition unavailable — voice button just no-ops safely
+    isAvailable.mockResolvedValue(false);
+    start.mockResolvedValue(undefined);
+    stop.mockResolvedValue(undefined);
   });
 
-  it('exposes the 7 expected actions', () => {
+  it('renders 8 tool buttons', () => {
     render(NoteToolbar, { props: { onAction: vi.fn() } });
-    for (const id of ['bold', 'italic', 'code', 'link', 'list', 'heading', 'image']) {
+    const buttons = screen.getAllByRole('button');
+    expect(buttons.length).toBe(8);
+  });
+
+  it('exposes the 8 expected actions', () => {
+    render(NoteToolbar, { props: { onAction: vi.fn() } });
+    for (const id of ['bold', 'italic', 'code', 'link', 'list', 'heading', 'image', 'voice']) {
       expect(screen.getByTestId(`toolbar-${id}`)).toBeInTheDocument();
     }
   });
@@ -33,6 +57,7 @@ describe('NoteToolbar', () => {
   it('disables all buttons when disabled=true', () => {
     render(NoteToolbar, { props: { onAction: vi.fn(), disabled: true } });
     const buttons = screen.getAllByRole('button');
+    expect(buttons.length).toBe(8);
     for (const b of buttons) {
       expect(b).toBeDisabled();
     }
@@ -66,6 +91,41 @@ describe('NoteToolbar', () => {
     expect(screen.getByLabelText(/Heading/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Insert image/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Inline code/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Voice input/i)).toBeInTheDocument();
+  });
+
+  it('voice button has aria-pressed reflecting listening state', () => {
+    render(NoteToolbar, { props: { onAction: vi.fn() } });
+    const mic = screen.getByTestId('toolbar-voice');
+    expect(mic.getAttribute('aria-pressed')).toBe('false');
+    expect(mic.getAttribute('data-voice-state')).toBe('idle');
+  });
+
+  it('tapping the mic button calls start() from the recognition module', async () => {
+    isAvailable.mockResolvedValue(true);
+    const onAction = vi.fn();
+    render(NoteToolbar, { props: { onAction, activeNoteId: 'n1' } });
+    await fireEvent.click(screen.getByTestId('toolbar-voice'));
+    // Flush the async toggleVoice: isAvailable() then start() each yield a microtask.
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(isAvailable).toHaveBeenCalledTimes(1);
+    expect(start).toHaveBeenCalledTimes(1);
+    // Voice is a capture toggle, not a markdown action — onAction must NOT fire.
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
+  it('disables the voice button when activeNoteId is null', () => {
+    render(NoteToolbar, { props: { onAction: vi.fn(), activeNoteId: null } });
+    const mic = screen.getByTestId('toolbar-voice');
+    expect(mic).toBeDisabled();
+  });
+
+  it('enables the voice button when activeNoteId is set', () => {
+    render(NoteToolbar, { props: { onAction: vi.fn(), activeNoteId: 'n1' } });
+    const mic = screen.getByTestId('toolbar-voice');
+    expect(mic).not.toBeDisabled();
   });
 
   it('renders 44dp min touch targets via CSS (not testable, contract check)', () => {
