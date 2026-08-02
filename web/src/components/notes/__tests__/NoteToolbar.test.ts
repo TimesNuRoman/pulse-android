@@ -116,6 +116,18 @@ describe('NoteToolbar', () => {
     expect(onAction).not.toHaveBeenCalled();
   });
 
+  it('disables the voice button when activeNoteId is null', () => {
+    render(NoteToolbar, { props: { onAction: vi.fn(), activeNoteId: null } });
+    const mic = screen.getByTestId('toolbar-voice');
+    expect(mic).toBeDisabled();
+  });
+
+  it('enables the voice button when activeNoteId is set', () => {
+    render(NoteToolbar, { props: { onAction: vi.fn(), activeNoteId: 'n1' } });
+    const mic = screen.getByTestId('toolbar-voice');
+    expect(mic).not.toBeDisabled();
+  });
+
   it('renders 44dp min touch targets via CSS (not testable, contract check)', () => {
     render(NoteToolbar, { props: { onAction: vi.fn() } });
     // Visual contract — class is applied for styling. We verify the toolbar element exists.

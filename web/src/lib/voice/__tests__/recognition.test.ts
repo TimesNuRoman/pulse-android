@@ -2,11 +2,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { isAvailable, start, stop } from '../recognition';
 
+interface MockHandle {
+  remove: ReturnType<typeof vi.fn>;
+}
+
+function makeHandle(): MockHandle {
+  return { remove: vi.fn().mockResolvedValue(undefined) };
+}
+
 function setPlugin(impl: Partial<{
   available: () => Promise<{ available: boolean }>;
   start: (o: unknown) => Promise<void>;
   stop: () => Promise<void>;
-  addListener: (e: string, l: (d: { matches: string[] }) => void) => void;
+  addListener: (e: string, l: (d: { matches: string[] }) => void) => MockHandle;
 }>): void {
   (window as unknown as { Capacitor: unknown }).Capacitor = {
     Plugins: { SpeechRecognition: impl },
@@ -43,7 +51,8 @@ describe('voice/recognition', () => {
 
   it('start() calls the plugin with the right options and wires the listener', async () => {
     const startFn = vi.fn().mockResolvedValue(undefined);
-    const addListener = vi.fn();
+    const handle = makeHandle();
+    const addListener = vi.fn().mockReturnValue(handle);
     setPlugin({ start: startFn, addListener });
 
     const onResult = vi.fn();
@@ -75,7 +84,7 @@ describe('voice/recognition', () => {
   it('start() reports an error when plugin.start() rejects', async () => {
     setPlugin({
       start: vi.fn().mockRejectedValue(new Error('permission denied')),
-      addListener: vi.fn(),
+      addListener: vi.fn().mockReturnValue(makeHandle()),
     });
     const onError = vi.fn();
     await start(vi.fn(), onError);
@@ -91,6 +100,85 @@ describe('voice/recognition', () => {
 
   it('stop() is a no-op when the plugin is missing', async () => {
     clearPlugin();
+    await expect(stop()).resolves.toBeUndefined();
+  });
+
+  it('start() captures the listener handle and stop() detaches it (leak fix)', async () => {
+    const handle = makeHandle();
+    const startFn = vi.fn().mockResolvedValue(undefined);
+    const stopFn = vi.fn().mockResolvedValue(undefined);
+    const addListener = vi.fn().mockReturnValue(handle);
+    setPlugin({ start: startFn, stop: stopFn, addListener });
+
+    await start(vi.fn(), vi.fn());
+    expect(addListener).toHaveBeenCalledTimes(1);
+    expect(handle.remove).not.toHaveBeenCalled();
+
+    await stop();
+    // stop() must call .remove() exactly once on the handle start() registered.
+    expect(handle.remove).toHaveBeenCalledTimes(1);
+  });
+
+  it('start() is idempotent — second start() removes the previous listener before re-registering', async () => {
+    const handle1 = makeHandle();
+    const handle2 = makeHandle();
+    const addListener = vi.fn().mockReturnValueOnce(handle1).mockReturnValueOnce(handle2);
+    setPlugin({
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn().mockResolvedValue(undefined),
+      addListener,
+    });
+
+    await start(vi.fn(), vi.fn());
+    await start(vi.fn(), vi.fn());
+
+    expect(addListener).toHaveBeenCalledTimes(2);
+    // First handle was removed when the second start() ran (idempotency).
+    expect(handle1.remove).toHaveBeenCalledTimes(1);
+    // Second handle is still alive at this point.
+    expect(handle2.remove).not.toHaveBeenCalled();
+
+    // After stop(), only the second (most recent) handle is detached.
+    await stop();
+    expect(handle1.remove).toHaveBeenCalledTimes(1);
+    expect(handle2.remove).toHaveBeenCalledTimes(1);
+  });
+
+  it('start() x2 then stop() x1 does not throw and cleans up both handles', async () => {
+    const handle1 = makeHandle();
+    const handle2 = makeHandle();
+    const addListener = vi.fn().mockReturnValueOnce(handle1).mockReturnValueOnce(handle2);
+    setPlugin({
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn().mockResolvedValue(undefined),
+      addListener,
+    });
+
+    await start(vi.fn(), vi.fn());
+    await start(vi.fn(), vi.fn());
+    await expect(stop()).resolves.toBeUndefined();
+
+    // First handle removed at the second start(), second handle removed at stop().
+    expect(handle1.remove).toHaveBeenCalledTimes(1);
+    expect(handle2.remove).toHaveBeenCalledTimes(1);
+  });
+
+  it('stop() swallows errors thrown by listener.remove()', async () => {
+    const handle = makeHandle();
+    handle.remove.mockRejectedValue(new Error('already detached'));
+    setPlugin({
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn().mockResolvedValue(undefined),
+      addListener: vi.fn().mockReturnValue(handle),
+    });
+
+    await start(vi.fn(), vi.fn());
+    await expect(stop()).resolves.toBeUndefined();
+    expect(handle.remove).toHaveBeenCalledTimes(1);
+  });
+
+  it('stop() with no prior start() does not throw (no handle to remove)', async () => {
+    setPlugin({ stop: vi.fn().mockResolvedValue(undefined) });
     await expect(stop()).resolves.toBeUndefined();
   });
 });

@@ -198,7 +198,7 @@
     data-testid="toolbar-voice"
     data-action="voice"
     data-voice-state={voiceState}
-    {disabled}
+    disabled={disabled || !activeNoteId}
     onclick={() => void toggleVoice()}
   >
     <svg

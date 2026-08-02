@@ -31,7 +31,14 @@ interface SpeechRecognitionPlugin {
     popup?: boolean;
   }) => Promise<void>;
   stop: () => Promise<void>;
-  addListener: (eventName: 'partialResults', listener: (data: { matches: string[] }) => void) => void;
+  addListener: (
+    eventName: 'partialResults',
+    listener: (data: { matches: string[] }) => void,
+  ) => PluginListenerHandle;
+}
+
+interface PluginListenerHandle {
+  remove: () => Promise<void>;
 }
 
 declare global {
@@ -45,6 +52,12 @@ declare global {
 }
 
 const LANG = (typeof navigator !== 'undefined' && navigator.language) || 'en-US';
+
+// Track the most recent partial-results listener so stop() can detach it.
+// Without this, every mic-toggle cycle would register a new listener and
+// leak the previous one (each leaked listener keeps a closure over the
+// previous onResult callback — small heap cost, but unbounded growth).
+let partialListener: PluginListenerHandle | null = null;
 
 function getPlugin(): SpeechRecognitionPlugin | null {
   if (typeof window === 'undefined') return null;
@@ -72,7 +85,19 @@ export async function start(
     return;
   }
   try {
-    plugin.addListener('partialResults', (data: { matches: string[] }) => {
+    // Idempotent: if a previous start() left a listener attached (e.g. the
+    // caller forgot to stop(), or stop() was racy), remove it before
+    // registering a new one. This is the leak fix — without it, N start
+    // cycles leave N listeners firing into the most recent onResult.
+    if (partialListener) {
+      try {
+        await partialListener.remove();
+      } catch {
+        // previous handle is already gone (native side torn down) — safe to ignore
+      }
+      partialListener = null;
+    }
+    partialListener = plugin.addListener('partialResults', (data: { matches: string[] }) => {
       const text = data?.matches?.[0];
       if (text) onResult({ text, isFinal: false });
     });
@@ -93,5 +118,15 @@ export async function stop(): Promise<void> {
     await plugin?.stop();
   } catch {
     // user-initiated stop can race with native teardown; swallow
+  }
+  // Detach the listener we attached in start(). Doing this after plugin.stop()
+  // avoids the "remove() called before stop() settled" race on Android.
+  if (partialListener) {
+    try {
+      await partialListener.remove();
+    } catch {
+      // native side may have already detached; safe to ignore
+    }
+    partialListener = null;
   }
 }
