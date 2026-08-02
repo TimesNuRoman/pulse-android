@@ -24,6 +24,14 @@
  * can auto-update forward. v0.6.3 / v0.6.4 users still need to
  * side-load v0.6.5 (see the release-notes-v0.6.5 page on the site).
  *
+ * R103: v0.6.6 was deployed at a new host (`ncfosklh79sxf`), but the
+ * R93 chain did not know about it — v0.6.5/6 users polling the chain
+ * would only see the R92 host's manifest (v0.6.5) and report "your
+ * version is up to date" even when a v0.6.7 lands. The chain now
+ * starts with R102's `ncfosklh79sxf` (the actual public deploy of
+ * v0.6.6) so v0.6.5+ users auto-update forward. R92 / R90 / R88 / R87
+ * / R85 / R81 / R78 are preserved below it as fallbacks.
+ *
  * Manifest schema (matches the deployed R87 host, with brief's flat
  * aliases as fallbacks for forward-compat):
  *   {
@@ -82,9 +90,14 @@ export const DEFAULT_MANIFEST_URL =
  * is the long-term fix; this chain is the bridge.
  */
 export const DEFAULT_MANIFEST_URLS: readonly string[] = [
-  // R92 (v0.6.5 — new full-site canonical; this is the bridge entry
-  // that lets v0.6.5+ devices auto-update forward even if R90 / R88
-  // hosts go down).
+  // R102 (v0.6.6 — current public deploy; this is the head so v0.6.5/6
+  // users see v0.6.6+ without waiting for a fallback. R102's host is
+  // the actual `website_deploy` URL for the v0.6.6 release — R95a /
+  // R97-HOTFIX canonicals are documented separately in pulse-landing's
+  // astro.config.mjs but the on-device chain follows the public deploy).
+  'https://ncfosklh79sxf.space.minimax.io/updates/android.json',
+  // R92 (v0.6.5 — bridge entry that lets v0.6.5+ devices auto-update
+  // forward even if R90 / R88 hosts go down).
   'https://yv5eeknt6h6sa.space.minimax.io/updates/android.json',
   // R90 (v0.6.4 — chain originator, R90 had the first multi-host chain).
   'https://ad67rp710vsl7.space.minimax.io/updates/android.json',
