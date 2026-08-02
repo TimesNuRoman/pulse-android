@@ -1,18 +1,41 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import NotesView from './views/NotesView.svelte';
-  import OnboardingFlow from './components/onboarding/OnboardingFlow.svelte';
+  import OnboardingView from './views/OnboardingView.svelte';
   import UpdateCheckerMount from './lib/update-checker/UpdateCheckerMount.svelte';
-  import {
-    readPersistedCompleted,
-    clearPersistedCompleted,
-  } from './components/onboarding/onboardingStore';
+
+  // R118 — onboarding is a 3-slide pager (Local-first, Voice+AI,
+  // Markdown+[[wikilinks]]) keyed to `pulse.onboarded`. The previous
+  // 4-screen OnboardingFlow (R85+) is still on disk under
+  // components/onboarding/ for reference but no longer wired in. When
+  // the user hits "Replay onboarding" in Settings, we clear the flag
+  // and flip the local route flag so the same path a fresh install
+  // takes runs.
+  const ONBOARDED_KEY = 'pulse.onboarded';
+
+  function readOnboarded(): boolean {
+    if (typeof localStorage === 'undefined') return false;
+    try {
+      return localStorage.getItem(ONBOARDED_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  }
+
+  function clearOnboarded(): void {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      localStorage.removeItem(ONBOARDED_KEY);
+    } catch {
+      // ignore
+    }
+  }
 
   let onboarded = $state(false);
   let ready = $state(false);
 
   onMount(() => {
-    onboarded = readPersistedCompleted();
+    onboarded = readOnboarded();
     ready = true;
   });
 
@@ -21,10 +44,7 @@
   }
 
   function handleReplayOnboarding(): void {
-    // P1 #3 (R95 audit) — Settings → "Replay onboarding" returns the
-    // user to the OnboardingFlow by clearing the completion flag and
-    // flipping the local route flag. Same path a fresh install takes.
-    clearPersistedCompleted();
+    clearOnboarded();
     onboarded = false;
   }
 </script>
@@ -35,7 +55,7 @@
   {:else if onboarded}
     <NotesView onReplayOnboarding={handleReplayOnboarding} />
   {:else}
-    <OnboardingFlow onComplete={handleComplete} />
+    <OnboardingView onComplete={handleComplete} />
   {/if}
   {#if ready}
     <UpdateCheckerMount />

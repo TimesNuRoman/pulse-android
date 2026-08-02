@@ -8,6 +8,7 @@
   import { notesStore, sortedNotes, allTags, backlinkIndex } from '../lib/notesStore';
   import { extractBacklinks, extractTags, type Note } from '../lib/notesBacklinks';
   import { share, copyToClipboard, hapticImpact } from '../lib/capacitor';
+  import { tap } from '../lib/haptics';
 
   type Mode = 'source' | 'preview' | 'split';
   type View = 'list' | 'note';
@@ -31,11 +32,13 @@
   let tagAnchor: 'top' | 'bottom' = $state('top');
 
   function openSettings(): void {
-    void hapticImpact({ light: true });
+    // R118 — tab switch (Settings/Notes) is a `selection` tick.
+    void tap('selection');
     settingsOpen = true;
   }
   function closeSettings(): void {
-    void hapticImpact({ light: true });
+    // R118 — closing Settings back to the Notes tab is also a tab switch.
+    void tap('selection');
     settingsOpen = false;
   }
   function replayOnboarding(): void {
@@ -69,16 +72,28 @@
 
   function deleteCurrentNote(): void {
     if (!activeNoteId) return;
+    // R118 — note delete fires a `medium` tap. The delete button still
+    // confirms immediately (single click) — see R118 report for the
+    // long-press confirm follow-up.
+    void tap('medium');
     notesStore.delete(activeNoteId);
     activeNoteId = null;
     view = 'list';
   }
 
+  // R118 — debounce save haptics so the user feels one `light` tap per
+  // "save burst" (after they pause typing), not one per keystroke.
+  let lastSaveHapticAt = 0;
   function onContentChange(s: string): void {
     if (!activeNoteId) return;
     saveState = 'saving';
     notesStore.update(activeNoteId, { content: s });
     saveState = 'saved';
+    const now = Date.now();
+    if (now - lastSaveHapticAt > 500) {
+      void tap('light');
+      lastSaveHapticAt = now;
+    }
     setTimeout(() => {
       if (saveState === 'saved') saveState = 'idle';
     }, 1200);

@@ -2,6 +2,7 @@
   import { hapticImpact } from '$lib/capacitor';
   import { notesStore } from '$lib/notesStore';
   import { isAvailable, start as startRecognition, stop as stopRecognition } from '$lib/voice/recognition';
+  import { tap } from '$lib/haptics';
 
   export type ToolbarAction =
     | 'bold'
@@ -100,7 +101,10 @@
 
   async function toggleVoice(): Promise<void> {
     if (disabled) return;
-    void hapticImpact({ light: true });
+    // R118 — mic start/stop fires a `heavy` tap so the user gets a
+    // distinct "I'm now recording" feel that doesn't collide with the
+    // light toolbar taps.
+    void tap('heavy');
 
     if (voiceState === 'listening') {
       // User taps again to stop — append the latest partial to the active note.

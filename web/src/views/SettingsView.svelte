@@ -3,6 +3,7 @@
   import { notesStore } from '$lib/notesStore';
   import { APP_VERSION, updateChecker } from '$lib/update-checker/update-checker';
   import { hapticImpact } from '$lib/capacitor';
+  import { hapticsEnabled, setHapticsEnabled, tap } from '$lib/haptics';
   import { onMount } from 'svelte';
 
   interface Props {
@@ -55,6 +56,14 @@
     notesStore.resetToMocks();
   }
 
+  function onHapticsToggle(e: Event): void {
+    const checked = (e.target as HTMLInputElement).checked;
+    setHapticsEnabled(checked);
+    // Fire one `light` tap on enable so the user feels confirmation
+    // (no-op on disable by design — R118 spec).
+    if (checked) void tap('light');
+  }
+
   const checkedAtLabel = $derived(
     lastCheckedAt ? new Date(lastCheckedAt).toLocaleString() : 'never',
   );
@@ -100,6 +109,24 @@
       <span class="swatch" style="background:#7aa2f7" title="#7aa2f7 accent blue"></span>
       <span class="swatch" style="background:#9ece6a" title="#9ece6a accent green"></span>
     </div>
+  </section>
+
+  <section class="settings-view__section" data-testid="settings-section-feedback" aria-labelledby="settings-feedback-h">
+    <h2 class="settings-view__section-title" id="settings-feedback-h">Feedback</h2>
+    <label class="settings-view__toggle">
+      <span class="settings-view__label">Haptics</span>
+      <input
+        type="checkbox"
+        class="settings-view__toggle-input"
+        checked={$hapticsEnabled}
+        onchange={onHapticsToggle}
+        data-testid="settings-haptics-toggle"
+        aria-label="Haptics"
+      />
+    </label>
+    <p class="settings-view__hint" data-testid="settings-haptics-note">
+      Tactile taps for saves, deletes, tab switches, and mic start/stop.
+    </p>
   </section>
 
   <section class="settings-view__section" data-testid="settings-section-about" aria-labelledby="settings-about-h">
@@ -223,6 +250,19 @@
   .settings-view__swatches {
     display: flex;
     gap: 8px;
+  }
+  .settings-view__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: var(--tn-touch-min, 44px);
+    cursor: pointer;
+  }
+  .settings-view__toggle-input {
+    width: 44px;
+    height: 24px;
+    cursor: pointer;
   }
   .swatch {
     width: 44px;
