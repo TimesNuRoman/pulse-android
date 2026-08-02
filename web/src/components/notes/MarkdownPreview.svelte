@@ -1,14 +1,58 @@
 <script lang="ts">
-  import { renderMarkdown } from '$lib/markdownIt';
+  import { render as renderMarkdown } from '$lib/markdown';
+  import type { Note } from '$lib/notesBacklinks';
 
   interface Props {
     source: string;
+    notes?: Note[];
+    onWikilinkClick?: (target: string, exists: boolean) => void;
     ariaLabel?: string;
   }
 
-  let { source, ariaLabel = 'Rendered preview' }: Props = $props();
+  let { source, notes = [], onWikilinkClick, ariaLabel = 'Rendered preview' }: Props = $props();
 
-  const html = $derived(renderMarkdown(source ?? ''));
+  // R136 — hand-rolled markdown parser with wikilink resolution. Returns
+  // sanitized HTML (safe for `{@html}`) plus a list of wikilink targets
+  // and whether each one exists in the notes store.
+  const result = $derived(renderMarkdown(source ?? '', notes ?? []));
+
+  // R136 — delegate clicks on `.wikilink` anchors to a parent callback.
+  // The parent decides whether to navigate (existing) or create a stub
+  // (broken). We use a Svelte action so the listener attaches after the
+  // `{@html}` content is in the DOM.
+  function wikilinkClickAction(node: HTMLElement): { destroy: () => void } {
+    function onClick(e: MouseEvent): void {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const anchor = target.closest('a.wikilink') as HTMLAnchorElement | null;
+      if (!anchor) return;
+      e.preventDefault();
+      const title = anchor.getAttribute('data-title');
+      if (!title) return;
+      const exists = !anchor.classList.contains('wikilink--broken');
+      onWikilinkClick?.(title, exists);
+    }
+    function onKeydown(e: KeyboardEvent): void {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const anchor = target.closest('a.wikilink') as HTMLAnchorElement | null;
+      if (!anchor) return;
+      e.preventDefault();
+      const title = anchor.getAttribute('data-title');
+      if (!title) return;
+      const exists = !anchor.classList.contains('wikilink--broken');
+      onWikilinkClick?.(title, exists);
+    }
+    node.addEventListener('click', onClick);
+    node.addEventListener('keydown', onKeydown);
+    return {
+      destroy(): void {
+        node.removeEventListener('click', onClick);
+        node.removeEventListener('keydown', onKeydown);
+      },
+    };
+  }
 </script>
 
 <div
@@ -17,8 +61,9 @@
   role="article"
   aria-label={ariaLabel}
   aria-live="polite"
+  use:wikilinkClickAction
 >
-  {@html html}
+  {@html result.html}
 </div>
 
 <style>
@@ -63,22 +108,36 @@
     border: 0;
     padding: 0;
   }
+  /* R136 — existing wikilinks: Tokyo Night blue accent, no underline by
+     default (the box itself signals interactivity). */
   .md-preview :global(.wikilink) {
-    color: var(--tn-accent-cyan, #7dcfff);
-    background: rgba(125, 207, 255, 0.08);
-    border: 1px solid rgba(125, 207, 255, 0.25);
+    color: var(--tn-accent-blue, #7aa2f7);
+    background: rgba(122, 162, 247, 0.08);
+    border: 1px solid rgba(122, 162, 247, 0.25);
     border-radius: 6px;
     padding: 1px 6px;
     text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s;
   }
-  .md-preview :global(.tag) {
-    color: var(--tn-accent-purple, #bb9af7);
-    background: rgba(187, 154, 247, 0.08);
-    border: 1px solid rgba(187, 154, 247, 0.25);
+  .md-preview :global(.wikilink:hover) {
+    background: rgba(122, 162, 247, 0.16);
+    border-color: rgba(122, 162, 247, 0.5);
+  }
+  /* R136 — broken wikilinks: red dashed underline, "create on tap" affordance. */
+  .md-preview :global(.wikilink--broken) {
+    color: var(--tn-error, #f7768e);
+    background: rgba(247, 118, 142, 0.06);
+    border: 1px dashed rgba(247, 118, 142, 0.4);
     border-radius: 6px;
     padding: 1px 6px;
     text-decoration: none;
-    font-size: 0.9em;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s;
+  }
+  .md-preview :global(.wikilink--broken:hover) {
+    background: rgba(247, 118, 142, 0.14);
+    border-color: rgba(247, 118, 142, 0.7);
   }
   .md-preview :global(blockquote) {
     border-left: 3px solid var(--tn-accent-purple, #bb9af7);

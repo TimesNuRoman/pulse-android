@@ -216,6 +216,23 @@ function createNotesStore() {
       store.update((notes) => [note, ...notes]);
       return note;
     },
+    // R136 — wikilink stub. When the user taps a `[[Title]]` that doesn't
+    // exist yet, the preview calls this to create a placeholder note whose
+    // body back-references the source. Title is taken verbatim; we do not
+    // reformat or auto-number collisions (the user can rename later).
+    createStubNote(title: string, sourceNoteId: string): Note {
+      const source = sourceNoteId ? this.get(sourceNoteId) : undefined;
+      const sourceTitle = source?.title ?? 'this note';
+      const note: Note = {
+        id: createId(),
+        title,
+        content: `Created from [[${sourceTitle}]]\n\n`,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      store.update((notes) => [note, ...notes]);
+      return note;
+    },
     update(id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'tags'>>): void {
       store.update((notes) =>
         notes.map((n) => (n.id === id ? { ...n, ...patch, updatedAt: Date.now() } : n)),

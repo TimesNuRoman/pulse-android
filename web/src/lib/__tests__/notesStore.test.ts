@@ -59,6 +59,23 @@ describe('notesStore', () => {
     expect(notesStore.get(note.id)).toBeUndefined();
   });
 
+  // R136 — wikilink stub creation
+  it('createStubNote() creates a new note with the given title and a back-link body', () => {
+    const source = notesStore.create('source content');
+    const before = notesStore.list().length;
+    const stub = notesStore.createStubNote('Future Topic', source.id);
+    expect(notesStore.list().length).toBe(before + 1);
+    expect(stub.title).toBe('Future Topic');
+    expect(stub.id).toBeTruthy();
+    expect(stub.content).toContain('Created from [[Untitled]]');
+    expect(stub.content).not.toContain('this note');
+  });
+
+  it('createStubNote() falls back to "this note" when source is missing', () => {
+    const stub = notesStore.createStubNote('Orphan', '');
+    expect(stub.content).toContain('Created from [[this note]]');
+  });
+
   it('get() returns undefined for unknown id', () => {
     expect(notesStore.get('does-not-exist')).toBeUndefined();
   });
