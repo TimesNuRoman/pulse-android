@@ -53,6 +53,14 @@ describe('R93b: android/app/build.gradle release pipeline', () => {
   it('falls back to debug signing when keystore.properties is missing (contributor safety net)', () => {
     expect(cfg?.hasFallbackForMissingKeystore).toBe(true);
   });
+
+  it('defaultConfig declares versionName "0.6.6"', () => {
+    expect(cfg?.versionName).toBe('0.6.6');
+  });
+
+  it('defaultConfig declares versionCode 16', () => {
+    expect(cfg?.versionCode).toBe(16);
+  });
 });
 
 describe('cycle 32 (P1 #1): AndroidManifest declares backup extraction rules', () => {

@@ -522,9 +522,9 @@ describe('resolveManifestUrls (R90)', () => {
     expect(urls[0]).toBe('https://custom.example.com/m.json');
     expect(urls[1]).toContain('yv5eeknt6h6sa');
   });
-  it('APP_VERSION / APP_VERSION_CODE reflect v0.6.5 / 15', () => {
-    expect(APP_VERSION).toBe('0.6.5');
-    expect(APP_VERSION_CODE).toBe(15);
+  it('APP_VERSION / APP_VERSION_CODE reflect v0.6.6 / 16', () => {
+    expect(APP_VERSION).toBe('0.6.6');
+    expect(APP_VERSION_CODE).toBe(16);
   });
   it('chain length grew from 5 (R90) to 7 (R93: +R92, +R90)', () => {
     // R93 added R92 (yv5eeknt6h6sa) at index 0 and R90 (ad67rp710vsl7) at
