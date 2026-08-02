@@ -1,6 +1,33 @@
 # Pulse Android — Changelog
 
-## [0.6.7] — R117 polish release — 2026-08-02
+## [0.6.7] — R118 polish release — 2026-08-02
+
+### R118 — haptics + first-launch onboarding
+
+- `web/src/lib/haptics.ts` — `tap('light' | 'medium' | 'heavy' | 'selection')`
+  wrapper. Persists `pulse.haptics.enabled` (default ON) to `localStorage`.
+  Native: prefers `@capacitor/haptics` plugin (`impact` / `selectionChanged`).
+  Web: `navigator.vibrate(10 / 20 / 30 / 5 ms)`. No-ops if disabled or no API.
+- Wired 4 spec events (file:line refs in `web/src/views/NotesView.svelte` +
+  `web/src/components/notes/NoteToolbar.svelte`):
+  - Note save — `light`, 500 ms debounced.
+  - Note delete — `medium`.
+  - Tab switch (open/close Settings) — `selection`.
+  - Mic start/stop — `heavy`.
+- Settings → Feedback → Haptics toggle (file:line in
+  `web/src/views/SettingsView.svelte`).
+- `web/src/views/OnboardingView.svelte` — 3-slide pager
+  (Local-first / Voice+AI / Markdown+`[[wikilinks]]`) with
+  Skip / Back / Next / Get started. Persists `pulse.onboarded=true` on
+  completion. Wired in `web/src/App.svelte` to replace the R85+ OnboardingFlow
+  (kept on disk for reference; not currently mounted).
+- See commit `ac846a5` (R118 haptics + first-launch onboarding).
+
+### Tests (R118)
+
+- 331/331 vitest (was 322/322 at v0.6.7-pre-R118, +9).
+- +6 `haptics.test.ts` (4 styles + persistence + disabled no-op).
+- +3 `OnboardingView.test.ts` (slide nav / skip / completion).
 
 ### R103 polish — P1 #2 voice input
 
@@ -35,7 +62,7 @@ All three P1 fixes from the v0.6.6 audit are in this release:
 
 ### Tests
 
-- 322/322 vitest (was 304/304 at v0.6.6, +18 across P1/R103).
+- 331/331 vitest (was 304/304 at v0.6.6, +27 across P1/R103/R118).
 - New test in `update-checker.test.ts` pins v0.6.7/17 + R102 chain head.
 - `gradleReleaseConfig.test.ts` version assertions bumped to 0.6.7/17.
 
@@ -50,11 +77,11 @@ All three P1 fixes from the v0.6.6 audit are in this release:
 
 ```
 android/app/build/outputs/apk/release/app-release.apk
-size:    1.29 MB (1,352,929 bytes)
-sha256:  39656F6C533016E7E6CF26210E81A09805ADE0E17E8B88107887082DB03468D8
+size:    1.29 MB (1,350,285 bytes)
+sha256:  47f5e915bd51e3f2b3843c37e5e413290e73b746c573b26e8d49e4d6076a6730
 versionName: 0.6.7
 versionCode: 17
-signing:     v2 + v3 (v1 disabled, R95a; v2 true, v3 true)
+signing:     v2 + v3 (v1 disabled, R95a; v2 true, v3 true, v3.1 false, v4 false)
 signer DN:   CN=Pulse Notes, OU=Pulse, O=Lesside, L=Brest, ST=Brest, C=BY
 signer SHA-256: fdbd5f612943d641c899809bc13985c2ad1238538d6b6eccc41e0e795007bfef (R93b)
 minSdk:      24
@@ -63,8 +90,12 @@ targetSdk:   36
 
 ### Deploy (R103 chain)
 
-- **APK canonical**: TBD (added at R118 deploy time)
-- **Manifest (R102 head)**: https://ncfosklh79sxf.space.minimax.io/android.json
+- **APK canonical**: https://ownlocalml.com/downloads/pulse-notes-0.6.7.apk
+  (also `.apk.sha256` sibling; 1,350,285 bytes; SHA-256
+  `47f5e915bd51e3f2b3843c37e5e413290e73b746c573b26e8d49e4d6076a6730`).
+- **Manifest (R102 head → R121 ownlocalml.com)**: https://ownlocalml.com/updates/android.json
+  (note: CF edge cache for ownlocalml.com is sticky — see R121 deploy notes
+  for the manual purge step required before users see `latest_version: 0.6.7`).
 - **Chain order** (R103, head → tail):
   1. https://ncfosklh79sxf.space.minimax.io/android.json (R102, v0.6.6)
   2. https://yv5eeknt6h6sa.space.minimax.io/android.json (R92,  v0.6.5)
