@@ -1,5 +1,7 @@
 <script lang="ts">
   import { hapticImpact } from '$lib/capacitor';
+  import { notesStore } from '$lib/notesStore';
+  import { isAvailable, start as startRecognition, stop as stopRecognition } from '$lib/voice/recognition';
 
   export type ToolbarAction =
     | 'bold'
@@ -14,9 +16,10 @@
     onAction: (action: ToolbarAction) => void;
     disabled?: boolean;
     compact?: boolean;
+    activeNoteId?: string | null;
   }
 
-  let { onAction, disabled = false, compact = false }: Props = $props();
+  let { onAction, disabled = false, compact = false, activeNoteId = null }: Props = $props();
 
   interface ToolDef {
     id: ToolbarAction;
@@ -80,6 +83,12 @@
 
   let headingLevel = $state(1);
 
+  // Voice capture state. 'idle' is the default, 'listening' means the mic
+  // is actively recording, 'error' is a brief fallback when the plugin
+  // reports unavailable.
+  let voiceState: 'idle' | 'listening' | 'error' = $state('idle');
+  let lastPartial: string = $state('');
+
   function handle(action: ToolbarAction): void {
     if (disabled) return;
     if (action === 'heading') {
@@ -87,6 +96,51 @@
     }
     void hapticImpact({ light: true });
     onAction?.(action);
+  }
+
+  async function toggleVoice(): Promise<void> {
+    if (disabled) return;
+    void hapticImpact({ light: true });
+
+    if (voiceState === 'listening') {
+      // User taps again to stop — append the latest partial to the active note.
+      await stopRecognition();
+      if (activeNoteId && lastPartial.trim().length > 0) {
+        const note = notesStore.get(activeNoteId);
+        if (note) {
+          const sep = note.content.length > 0 && !note.content.endsWith('\n') ? '\n' : '';
+          notesStore.update(activeNoteId, {
+            content: `${note.content}${sep}${lastPartial.trim()}`,
+          });
+        }
+      }
+      lastPartial = '';
+      voiceState = 'idle';
+      return;
+    }
+
+    if (!(await isAvailable())) {
+      voiceState = 'error';
+      setTimeout(() => {
+        if (voiceState === 'error') voiceState = 'idle';
+      }, 1500);
+      return;
+    }
+
+    lastPartial = '';
+    voiceState = 'listening';
+    await startRecognition(
+      (result) => {
+        lastPartial = result.text;
+      },
+      (err) => {
+        console.warn('[NoteToolbar] speech recognition error', err);
+        voiceState = 'error';
+        setTimeout(() => {
+          if (voiceState === 'error') voiceState = 'idle';
+        }, 1500);
+      },
+    );
   }
 
   // Expose current heading level for the parent (via prop callback).
@@ -132,6 +186,40 @@
       {/if}
     </button>
   {/each}
+  <span class="md-toolbar__separator" aria-hidden="true"></span>
+  <button
+    type="button"
+    class="md-toolbar__btn md-toolbar__btn--voice"
+    class:md-toolbar__btn--listening={voiceState === 'listening'}
+    class:md-toolbar__btn--error={voiceState === 'error'}
+    aria-label="Voice input"
+    aria-pressed={voiceState === 'listening'}
+    title="Voice input"
+    data-testid="toolbar-voice"
+    data-action="voice"
+    data-voice-state={voiceState}
+    {disabled}
+    onclick={() => void toggleVoice()}
+  >
+    <svg
+      class="md-toolbar__icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+      <path d="M12 19v4" />
+      <path d="M8 23h8" />
+    </svg>
+    {#if !compact}
+      <span class="md-toolbar__label">Voice</span>
+    {/if}
+  </button>
 </nav>
 
 <style>
@@ -185,6 +273,22 @@
   .md-toolbar--compact .md-toolbar__btn {
     min-width: var(--tn-touch-min, 44px);
     padding: 0;
+  }
+  .md-toolbar__separator {
+    width: 1px;
+    align-self: stretch;
+    margin: 6px 4px;
+    background: var(--tn-border, #414868);
+    flex-shrink: 0;
+  }
+  .md-toolbar__btn--listening {
+    background: var(--tn-bg-overlay, #1f2335);
+    color: var(--tn-accent-blue, #7aa2f7);
+    border-color: var(--tn-accent-blue, #7aa2f7);
+  }
+  .md-toolbar__btn--error {
+    color: var(--tn-error, #f7768e);
+    border-color: var(--tn-error, #f7768e);
   }
   .md-toolbar--disabled {
     opacity: 0.5;

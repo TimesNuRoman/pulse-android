@@ -53,12 +53,14 @@ describe('NotesView', () => {
     expect(screen.getByTestId('mode-preview')).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('shows the toolbar with 7 actions', async () => {
+  it('shows the toolbar with 8 actions (7 markdown + voice)', async () => {
     render(NotesView);
     await fireEvent.click(screen.getByTestId('note-card-n1'));
     const toolbar = screen.getByTestId('note-toolbar');
     expect(toolbar).toBeInTheDocument();
-    expect(toolbar.querySelectorAll('button').length).toBe(7);
+    expect(toolbar.querySelectorAll('button').length).toBe(8);
+    // Voice mic is the 8th tool, separated from the markdown group.
+    expect(screen.getByTestId('toolbar-voice')).toBeInTheDocument();
   });
 
   it('shows tag chips for tags in the note', async () => {

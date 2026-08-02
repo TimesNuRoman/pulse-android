@@ -250,7 +250,11 @@
       </button>
     </header>
 
-    <NoteToolbar onAction={onToolbarAction} disabled={mode === 'preview'} />
+    <NoteToolbar
+      onAction={onToolbarAction}
+      disabled={mode === 'preview'}
+      activeNoteId={activeNoteId}
+    />
 
     <div class="notes-view__body" data-mode={mode}>
       {#if mode === 'split'}
