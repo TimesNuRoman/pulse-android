@@ -498,38 +498,42 @@ describe('resolveManifestUrls (R90)', () => {
     const urls = resolveManifestUrls({ VITE_UPDATE_MANIFEST_URL: '   ' });
     expect(urls).toEqual([...DEFAULT_MANIFEST_URLS]);
   });
-  it('chains the canonical R88 host first (R90-era policy, superseded by R93)', () => {
-    // R90 originally put the R88 host at index 0; R93 supersedes this by
-    // adding R92 + R90 to the head. This test now pins the R93 ordering.
+  it('chains the canonical R88 host first (R90-era policy, superseded by R93 → R103)', () => {
+    // R90 originally put the R88 host at index 0; R93 superseded this by
+    // adding R92 + R90 to the head; R103 supersedes R93 by adding R102
+    // (the v0.6.6 public deploy) at index 0. This test now pins the
+    // R103 ordering: R102 is head, R92 is index 1, R90 is index 2,
+    // R88 is at index 3.
     const urls = resolveManifestUrls(null);
-    // v0.6.5 (R93) reality: R92 is head, R90 is index 1, R88 is at index 2.
-    expect(urls[0]).toContain('yv5eeknt6h6sa');
-    expect(urls[1]).toContain('ad67rp710vsl7');
-    expect(urls[2]).toContain('32dhrw35m4x2v');
+    expect(urls[0]).toContain('ncfosklh79sxf'); // R102 (v0.6.6)
+    expect(urls[1]).toContain('yv5eeknt6h6sa'); // R92 (v0.6.5)
+    expect(urls[2]).toContain('ad67rp710vsl7'); // R90 (v0.6.4)
+    expect(urls[3]).toContain('32dhrw35m4x2v'); // R88 (v0.6.3)
   });
-  it('chains the R92 (yv5eeknt6h6sa) host first (R93 v0.6.5 bridge release)', () => {
+  it('chains the R102 (ncfosklh79sxf) host first (R103 v0.6.6 deploy)', () => {
     const urls = resolveManifestUrls(null);
-    expect(urls[0]).toContain('yv5eeknt6h6sa');
-    expect(urls[1]).toContain('ad67rp710vsl7');
-    expect(urls[2]).toContain('32dhrw35m4x2v');
+    expect(urls[0]).toContain('ncfosklh79sxf');
+    expect(urls[1]).toContain('yv5eeknt6h6sa');
+    expect(urls[2]).toContain('ad67rp710vsl7');
   });
-  it('chain has the v0.6.5 R92 host at the head regardless of env', () => {
-    // Env override goes BEFORE the chain head, but the R92 host must
+  it('chain has the v0.6.6 R102 host at the head regardless of env', () => {
+    // Env override goes BEFORE the chain head, but the R102 host must
     // still be the first default (i.e. index 1 after the env override).
     const urls = resolveManifestUrls({
       VITE_UPDATE_MANIFEST_URL: 'https://custom.example.com/m.json',
     });
     expect(urls[0]).toBe('https://custom.example.com/m.json');
-    expect(urls[1]).toContain('yv5eeknt6h6sa');
+    expect(urls[1]).toContain('ncfosklh79sxf');
   });
   it('APP_VERSION / APP_VERSION_CODE reflect v0.6.6 / 16', () => {
     expect(APP_VERSION).toBe('0.6.6');
     expect(APP_VERSION_CODE).toBe(16);
   });
-  it('chain length grew from 5 (R90) to 7 (R93: +R92, +R90)', () => {
+  it('chain length grew from 5 (R90) to 7 (R93) to 8 (R103: +R102)', () => {
     // R93 added R92 (yv5eeknt6h6sa) at index 0 and R90 (ad67rp710vsl7) at
-    // index 1 — 5 → 7 entries.
-    expect(DEFAULT_MANIFEST_URLS.length).toBe(7);
+    // index 1 (5 → 7 entries). R103 adds R102 (ncfosklh79sxf) at the head
+    // so v0.6.5/6 users can see v0.6.6+ without a chain fallthrough.
+    expect(DEFAULT_MANIFEST_URLS.length).toBe(8);
   });
 });
 
@@ -624,9 +628,13 @@ describe('R93 v0.6.5 — bridge release chain behaviour', () => {
     expect(r.manifest?.latest_version).toBe('0.6.5');
   });
   it('UpdateChecker.check falls through chain when R92 host is down', async () => {
-    // R93 chain: [R92, R90, R88, R87, R85, R81, R78]. R92 returns 500,
-    // R90 returns valid. fetchManifestFromChain must walk the chain.
+    // R103 chain: [R102, R92, R90, R88, R87, R85, R81, R78]. R102 +
+    // R92 return 500, R90 returns valid. fetchManifestFromChain must
+    // walk past both failures and surface the R90 URL.
     const fetcher = vi.fn(async (url: string) => {
+      if (url.includes('ncfosklh79sxf')) {
+        return new Response('boom', { status: 500 });
+      }
       if (url.includes('yv5eeknt6h6sa')) {
         return new Response('boom', { status: 500 });
       }
@@ -639,17 +647,19 @@ describe('R93 v0.6.5 — bridge release chain behaviour', () => {
       fetcher: fetcher as unknown as typeof fetch,
     });
     expect(r.url).toContain('ad67rp710vsl7');
-    expect(r.attempts.length).toBe(1);
-    expect(r.attempts[0].url).toContain('yv5eeknt6h6sa');
+    expect(r.attempts.length).toBe(2);
+    expect(r.attempts[0].url).toContain('ncfosklh79sxf');
     expect(r.attempts[0].error).toMatch(/HTTP 500/);
+    expect(r.attempts[1].url).toContain('yv5eeknt6h6sa');
+    expect(r.attempts[1].error).toMatch(/HTTP 500/);
   });
-  it('R93 env override precedes the R92 head (custom host beats R92)', () => {
+  it('R103 env override precedes the R102 head (custom host beats R102)', () => {
     const urls = resolveManifestUrls({
       VITE_UPDATE_MANIFEST_URL: 'https://github-raw.example.com/m.json',
     });
     expect(urls[0]).toBe('https://github-raw.example.com/m.json');
-    expect(urls[1]).toContain('yv5eeknt6h6sa');
-    expect(urls.length).toBe(8); // 1 env + 7 default
+    expect(urls[1]).toContain('ncfosklh79sxf');
+    expect(urls.length).toBe(9); // 1 env + 8 default
   });
   it('compareVersions: 0.6.5 > 0.6.4 (numeric, not lex)', () => {
     expect(compareVersions('0.6.5', '0.6.4')).toBeGreaterThan(0);
@@ -729,5 +739,160 @@ describe('R93 v0.6.5 — bridge release chain behaviour', () => {
     // page slug is the conventional pattern. (This is a regression guard
     // for the site release-notes page; the page exists per R93 deploy.)
     expect(expected).toMatch(/\/release-notes-v0\.6\.5\/$/);
+  });
+});
+
+describe('R103 v0.6.6 — chain extension so v0.6.5/6 users auto-update', () => {
+  it('R103 chain head is the R102 (ncfosklh79sxf) public-deploy host', () => {
+    // The whole point of R103: v0.6.6 was deployed at ncfosklh79sxf,
+    // so the chain must start there or v0.6.5/6 users will keep
+    // polling R92 (v0.6.5) and report "you're up to date" until a
+    // future R10x explicitly re-extends.
+    const urls = resolveManifestUrls(null);
+    expect(urls[0]).toBe('https://ncfosklh79sxf.space.minimax.io/updates/android.json');
+  });
+  it('R103 chain preserves every R90/R93 host (no rotation removed)', () => {
+    // Regression guard: extending the chain must never silently drop
+    // an older host. If a future PR removes one, this test fails.
+    const chain = DEFAULT_MANIFEST_URLS;
+    for (const host of [
+      'ncfosklh79sxf', // R102 (v0.6.6) — added in R103
+      'yv5eeknt6h6sa', // R92 (v0.6.5)
+      'ad67rp710vsl7', // R90 (v0.6.4)
+      '32dhrw35m4x2v', // R88 (v0.6.3)
+      'hrkbksh0x0xz4', // R87
+      'cq9a31txpromd', // R85
+      '813khigmhk9k8', // R81
+      'fy150e36f93n8', // R78
+    ]) {
+      expect(chain.some((u) => u.includes(host))).toBe(true);
+    }
+  });
+  it('R103 chain ordering: R102 before R92, R92 before R90, ... R78 last', () => {
+    // Most-recent first; oldest last. The v0.6.5 user sees the v0.6.6
+    // manifest in one round-trip (no fallthrough) when R102 is up.
+    const chain = DEFAULT_MANIFEST_URLS;
+    const order = [
+      'ncfosklh79sxf', // R102
+      'yv5eeknt6h6sa', // R92
+      'ad67rp710vsl7', // R90
+      '32dhrw35m4x2v', // R88
+      'hrkbksh0x0xz4', // R87
+      'cq9a31txpromd', // R85
+      '813khigmhk9k8', // R81
+      'fy150e36f93n8', // R78
+    ];
+    for (let i = 0; i < order.length; i++) {
+      expect(chain[i]).toContain(order[i]);
+    }
+  });
+  it('R103 env override precedes the R102 head, R102 still at index 1', () => {
+    const urls = resolveManifestUrls({
+      VITE_UPDATE_MANIFEST_URL: 'https://github-raw.example.com/m.json',
+    });
+    expect(urls[0]).toBe('https://github-raw.example.com/m.json');
+    expect(urls[1]).toContain('ncfosklh79sxf');
+    expect(urls.length).toBe(9);
+  });
+  it('R103 chain length is 8 (R90=5 → R93=7 → R103=8)', () => {
+    // Pin the length. If someone adds or removes a host without
+    // updating this, the test forces them to justify the change.
+    expect(DEFAULT_MANIFEST_URLS.length).toBe(8);
+  });
+  it('R103 chain dedup: no identical URLs (R102 must not be a copy of R92)', () => {
+    const seen = new Set<string>();
+    for (const u of DEFAULT_MANIFEST_URLS) {
+      expect(seen.has(u)).toBe(false);
+      seen.add(u);
+    }
+    expect(seen.size).toBe(DEFAULT_MANIFEST_URLS.length);
+  });
+  it('R103 chain hosts are all valid HTTPS manifest URLs', () => {
+    for (const u of DEFAULT_MANIFEST_URLS) {
+      expect(u.startsWith('https://')).toBe(true);
+      expect(u).toContain('/updates/android.json');
+      expect(u).not.toMatch(/\.space\.minimax\.io\/$/);
+    }
+  });
+  it('R103 chain: v0.6.6 user on the R102 head sees "up to date"', async () => {
+    // A v0.6.6 user polls the R103 chain. The R102 host (ncfosklh79sxf)
+    // is at the head and serves v0.6.6/16, so the check returns
+    // needsUpdate=false in a single round-trip.
+    const validR103 = {
+      ...validR87,
+      latest_version: '0.6.6',
+      latest_version_code: 16,
+    };
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.includes('ncfosklh79sxf')) {
+        return new Response(JSON.stringify(validR103), { status: 200 });
+      }
+      return new Response('boom', { status: 500 });
+    });
+    const localChecker = new UpdateChecker();
+    const r = await localChecker.check({
+      fetcher: fetcher as unknown as typeof fetch,
+      force: true,
+      installedVersion: { version: '0.6.6', versionCode: 16 },
+    });
+    expect(r.needsUpdate).toBe(false);
+    expect(r.forceUpdate).toBe(false);
+    expect(r.manifestUrl).toBe('https://ncfosklh79sxf.space.minimax.io/updates/android.json');
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it('R103 chain: v0.6.5 user on the R102 head gets a v0.6.6 update prompt', async () => {
+    // A v0.6.5 user polls the R103 chain. The R102 host is at the
+    // head and serves v0.6.6/16, so the check returns needsUpdate=true
+    // — this is the auto-update path R103 exists to enable.
+    const validR103 = {
+      ...validR87,
+      latest_version: '0.6.6',
+      latest_version_code: 16,
+    };
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.includes('ncfosklh79sxf')) {
+        return new Response(JSON.stringify(validR103), { status: 200 });
+      }
+      return new Response('boom', { status: 500 });
+    });
+    const localChecker = new UpdateChecker();
+    const r = await localChecker.check({
+      fetcher: fetcher as unknown as typeof fetch,
+      force: true,
+      installedVersion: { version: '0.6.5', versionCode: 15 },
+    });
+    expect(r.needsUpdate).toBe(true);
+    expect(r.forceUpdate).toBe(false);
+    expect(r.manifest?.latest_version).toBe('0.6.6');
+    expect(r.manifestUrl).toContain('ncfosklh79sxf');
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it('R103 chain: R102 down → R92 (v0.6.5) still serves the v0.6.5 manifest', async () => {
+    // R103 fallthrough: R102 returns 500, R92 returns the v0.6.5
+    // manifest. A v0.6.5 user on a down R102 still gets a working
+    // update check (just no v0.6.6 yet).
+    const validR93 = {
+      ...validR87,
+      latest_version: '0.6.5',
+      latest_version_code: 15,
+    };
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.includes('ncfosklh79sxf')) {
+        return new Response('boom', { status: 500 });
+      }
+      if (url.includes('yv5eeknt6h6sa')) {
+        return new Response(JSON.stringify(validR93), { status: 200 });
+      }
+      return new Response('boom', { status: 500 });
+    });
+    const localChecker = new UpdateChecker();
+    const r = await localChecker.check({
+      fetcher: fetcher as unknown as typeof fetch,
+      force: true,
+      installedVersion: { version: '0.6.5', versionCode: 15 },
+    });
+    expect(r.needsUpdate).toBe(false);
+    expect(r.manifestUrl).toContain('yv5eeknt6h6sa');
+    expect(r.manifest?.latest_version).toBe('0.6.5');
   });
 });
