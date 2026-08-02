@@ -10,7 +10,9 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import {
   readGradleReleaseConfig,
+  readManifestBackupRules,
   type GradleReleaseConfigCheck,
+  type ManifestBackupRulesCheck,
 } from '../gradleReleaseConfig';
 
 describe('R93b: android/app/build.gradle release pipeline', () => {
@@ -50,5 +52,42 @@ describe('R93b: android/app/build.gradle release pipeline', () => {
 
   it('falls back to debug signing when keystore.properties is missing (contributor safety net)', () => {
     expect(cfg?.hasFallbackForMissingKeystore).toBe(true);
+  });
+});
+
+describe('cycle 32 (P1 #1): AndroidManifest declares backup extraction rules', () => {
+  let m: ManifestBackupRulesCheck | null;
+
+  beforeAll(() => {
+    m = readManifestBackupRules();
+  });
+
+  it('AndroidManifest.xml is readable', () => {
+    expect(m).not.toBeNull();
+    expect(m?.manifestExists).toBe(true);
+  });
+
+  it('declares android:dataExtractionRules="@xml/data_extraction_rules" (Android 12+)', () => {
+    expect(m?.declaresDataExtractionRules).toBe(true);
+  });
+
+  it('declares android:fullBackupContent="@xml/backup_rules" (Android 6-11)', () => {
+    expect(m?.declaresFullBackupContent).toBe(true);
+  });
+
+  it('res/xml/data_extraction_rules.xml exists on disk', () => {
+    expect(m?.dataExtractionRulesXmlExists).toBe(true);
+  });
+
+  it('res/xml/backup_rules.xml exists on disk', () => {
+    expect(m?.backupRulesXmlExists).toBe(true);
+  });
+
+  it('data_extraction_rules.xml excludes the Capacitor WebView store (cloud-backup + device-transfer)', () => {
+    expect(m?.dataExtractionRulesExcludesAppWebview).toBe(true);
+  });
+
+  it('backup_rules.xml excludes the Capacitor WebView store (full-backup)', () => {
+    expect(m?.backupRulesExcludesAppWebview).toBe(true);
   });
 });

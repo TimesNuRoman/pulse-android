@@ -56,6 +56,10 @@
       <span class="lf__bullet" aria-hidden="true"></span>
       <span class="lf__text">Zero telemetry, zero ad networks, zero tracking</span>
     </li>
+    <li class="lf__item" data-testid="lf-item-backup">
+      <span class="lf__bullet" aria-hidden="true"></span>
+      <span class="lf__text">No cloud backup — notes never sync to Google Drive or phone-to-phone transfer</span>
+    </li>
   </ul>
 
   <button

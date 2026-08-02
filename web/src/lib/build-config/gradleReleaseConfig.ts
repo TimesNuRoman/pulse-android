@@ -34,6 +34,40 @@ export interface GradleReleaseConfigCheck {
 const PROJECT_ROOT = resolve(__dirname, '..', '..', '..');
 const ANDROID_APP_DIR = resolve(PROJECT_ROOT, '..', 'android', 'app');
 const BUILD_GRADLE_PATH = resolve(ANDROID_APP_DIR, 'build.gradle');
+// cycle 32 (P1 #1): AndroidManifest must declare BOTH dataExtractionRules
+// (API 31+) and fullBackupContent (API 23-30) so that allowBackup="true"
+// doesn't silently include the Capacitor WebView store in cloud-backup.
+const ANDROID_MANIFEST_PATH = resolve(
+  PROJECT_ROOT,
+  '..',
+  'android',
+  'app',
+  'src',
+  'main',
+  'AndroidManifest.xml',
+);
+const BACKUP_RULES_XML_PATH = resolve(
+  PROJECT_ROOT,
+  '..',
+  'android',
+  'app',
+  'src',
+  'main',
+  'res',
+  'xml',
+  'backup_rules.xml',
+);
+const DATA_EXTRACTION_RULES_XML_PATH = resolve(
+  PROJECT_ROOT,
+  '..',
+  'android',
+  'app',
+  'src',
+  'main',
+  'res',
+  'xml',
+  'data_extraction_rules.xml',
+);
 
 /**
  * Parse android/app/build.gradle and return a structural snapshot.
@@ -80,5 +114,66 @@ export function readGradleReleaseConfig(): GradleReleaseConfigCheck | null {
     hasFallbackForMissingKeystore,
     neverHardcodesPassword,
     hasNoHardcodedStorePasswordLiteral,
+  };
+}
+
+/**
+ * cycle 32 (P1 #1): verify the AndroidManifest declares BOTH
+ * dataExtractionRules (API 31+) and fullBackupContent (API 23-30), and that
+ * the referenced XML files exist and contain an `<exclude>` for the
+ * Capacitor WebView store. Without these, allowBackup="true" leaks the
+ * localStorage / IndexedDB used by the editor into the user's Google
+ * account — directly contradicting the "Local-first" onboarding promise.
+ *
+ * Returns null if the manifest is missing (e.g. non-Android CI node).
+ */
+export interface ManifestBackupRulesCheck {
+  manifestExists: boolean;
+  declaresDataExtractionRules: boolean;
+  declaresFullBackupContent: boolean;
+  dataExtractionRulesXmlExists: boolean;
+  backupRulesXmlExists: boolean;
+  dataExtractionRulesExcludesAppWebview: boolean;
+  backupRulesExcludesAppWebview: boolean;
+}
+
+export function readManifestBackupRules(): ManifestBackupRulesCheck | null {
+  let src: string;
+  try {
+    src = readFileSync(ANDROID_MANIFEST_PATH, 'utf8');
+  } catch {
+    return null;
+  }
+
+  const declaresDataExtractionRules =
+    /android:dataExtractionRules\s*=\s*"@xml\/data_extraction_rules"/.test(src);
+  const declaresFullBackupContent =
+    /android:fullBackupContent\s*=\s*"@xml\/backup_rules"/.test(src);
+
+  let dataExtractionRulesXml = '';
+  try {
+    dataExtractionRulesXml = readFileSync(DATA_EXTRACTION_RULES_XML_PATH, 'utf8');
+  } catch {
+    // leave empty
+  }
+  let backupRulesXml = '';
+  try {
+    backupRulesXml = readFileSync(BACKUP_RULES_XML_PATH, 'utf8');
+  } catch {
+    // leave empty
+  }
+
+  return {
+    manifestExists: true,
+    declaresDataExtractionRules,
+    declaresFullBackupContent,
+    dataExtractionRulesXmlExists: dataExtractionRulesXml.length > 0,
+    backupRulesXmlExists: backupRulesXml.length > 0,
+    dataExtractionRulesExcludesAppWebview:
+      /domain\s*=\s*"file"[^>]*path\s*=\s*"app_webview\/"/.test(
+        dataExtractionRulesXml,
+      ),
+    backupRulesExcludesAppWebview:
+      /domain\s*=\s*"file"[^>]*path\s*=\s*"app_webview\/"/.test(backupRulesXml),
   };
 }

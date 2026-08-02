@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android 12+ (API 31+) data-extraction rules. Required for any app that
+    sets allowBackup="true" and targets SDK >= 31. Without this file the
+    system falls back to including EVERYTHING under files/, including the
+    Capacitor WebView store, in cloud-backup and device-transfer.
+
+    This file is what enforces the "Local-first" promise in
+    web/src/components/onboarding/screens/LocalFirst.svelte (cycle 32 fix).
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="app_webview/" />
+        <exclude domain="file" path="capacitor.config.json" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="app_webview/" />
+        <exclude domain="file" path="capacitor.config.json" />
+    </device-transfer>
+</data-extraction-rules>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Pre-Android 12 auto-backup rules (API 23-30).
+    Excludes the Capacitor WebView storage (localStorage / IndexedDB) so notes
+    never leak into the user's Google account via adb backup or Auto Backup.
+-->
+<full-backup-content>
+    <exclude domain="file" path="app_webview/" />
+    <exclude domain="file" path="capacitor.config.json" />
+</full-backup-content>
