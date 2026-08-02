@@ -205,3 +205,106 @@ describe('render — sanitization', () => {
     expect(r.html).toContain('Tom &amp; Jerry');
   });
 });
+
+describe('render — tables (R146)', () => {
+  it('renders a simple 2x2 table with header + one body row', () => {
+    const r = render('| a | b |\n| - | - |\n| 1 | 2 |', []);
+    expect(r.html).toContain('<table>');
+    expect(r.html).toContain('<thead>');
+    expect(r.html).toContain('</thead>');
+    expect(r.html).toContain('<tbody>');
+    expect(r.html).toContain('</tbody>');
+    expect(r.html).toContain('<th scope="col" class="align-left">a</th>');
+    expect(r.html).toContain('<th scope="col" class="align-left">b</th>');
+    expect(r.html).toContain('<tr><td class="align-left">1</td><td class="align-left">2</td></tr>');
+  });
+
+  it('renders a 3-column table with 2 body rows', () => {
+    const src =
+      '| Name | Age | City |\n' +
+      '| ---- | --- | ---- |\n' +
+      '| Anna | 28  | Brest |\n' +
+      '| Mark | 35  | Minsk |';
+    const r = render(src, []);
+    expect(r.html).toContain('<th scope="col" class="align-left">Name</th>');
+    expect(r.html).toContain('<th scope="col" class="align-left">Age</th>');
+    expect(r.html).toContain('<th scope="col" class="align-left">City</th>');
+    expect(r.html).toContain('<tr><td class="align-left">Anna</td><td class="align-left">28</td><td class="align-left">Brest</td></tr>');
+    expect(r.html).toContain('<tr><td class="align-left">Mark</td><td class="align-left">35</td><td class="align-left">Minsk</td></tr>');
+  });
+
+  it('applies alignment classes from the separator row', () => {
+    const src = '| L | C | R |\n|:-|:-:|-:|\n| 1 | 2 | 3 |';
+    const r = render(src, []);
+    expect(r.html).toContain('<th scope="col" class="align-left">L</th>');
+    expect(r.html).toContain('<th scope="col" class="align-center">C</th>');
+    expect(r.html).toContain('<th scope="col" class="align-right">R</th>');
+    expect(r.html).toContain('<td class="align-left">1</td>');
+    expect(r.html).toContain('<td class="align-center">2</td>');
+    expect(r.html).toContain('<td class="align-right">3</td>');
+  });
+
+  it('renders empty cells as empty <td>', () => {
+    const src = '| a |   | c |\n| - | - | - |\n| 1 |   | 3 |';
+    const r = render(src, []);
+    expect(r.html).toContain('<th scope="col" class="align-left">a</th>');
+    expect(r.html).toContain('<th scope="col" class="align-left"></th>');
+    expect(r.html).toContain('<th scope="col" class="align-left">c</th>');
+    expect(r.html).toContain('<td class="align-left">1</td>');
+    expect(r.html).toContain('<td class="align-left"></td>');
+    expect(r.html).toContain('<td class="align-left">3</td>');
+  });
+
+  it('renders inline markdown inside table cells (bold + wikilink + italic)', () => {
+    const src =
+      '| name | link | emphasis |\n' +
+      '| ---- | ---- | -------- |\n' +
+      '| **Anna** | [[Welcome]] | *yes* |';
+    const r = render(src, notes);
+    expect(r.html).toContain('<td class="align-left"><strong>Anna</strong></td>');
+    expect(r.html).toContain('class="wikilink"');
+    expect(r.html).toContain('data-title="Welcome"');
+    expect(r.html).toContain('<td class="align-left"><em>yes</em></td>');
+  });
+
+  it('falls back to paragraph when the separator row is missing', () => {
+    const r = render('| a | b |\n| 1 | 2 |', []);
+    expect(r.html).not.toContain('<table>');
+    expect(r.html).toContain('<p>');
+  });
+
+  it('renders a table at the very start of the document', () => {
+    const r = render('| a | b |\n| - | - |\n| 1 | 2 |', []);
+    const openIdx = r.html.indexOf('<table>');
+    const closeIdx = r.html.indexOf('</table>');
+    expect(openIdx).toBeGreaterThanOrEqual(0);
+    expect(closeIdx).toBeGreaterThan(openIdx);
+    expect(r.html).toContain('<th scope="col" class="align-left">a</th>');
+  });
+
+  it('renders a table after a heading in the same document', () => {
+    const src = '# Title\n\n| a | b |\n| - | - |\n| 1 | 2 |';
+    const r = render(src, []);
+    expect(r.html).toContain('<h1>Title</h1>');
+    expect(r.html).toContain('<table>');
+    expect(r.html).toContain('<th scope="col" class="align-left">a</th>');
+    expect(r.html).toContain('<td class="align-left">1</td>');
+  });
+
+  it('renders inline code inside table cells', () => {
+    const src = '| code | desc |\n| ---- | ---- |\n| `x`  | var  |';
+    const r = render(src, []);
+    expect(r.html).toContain('<td class="align-left"><code>x</code></td>');
+    expect(r.html).toContain('<td class="align-left">var</td>');
+  });
+
+  it('escapes raw HTML inside table cells (no executable <script>)', () => {
+    const src = '| a | b |\n| - | - |\n| <script>alert(1)</script> | hi |';
+    const r = render(src, []);
+    expect(r.html).not.toContain('<script>');
+    expect(r.html).not.toContain('</script>');
+    expect(r.html).toContain('&lt;script&gt;');
+    expect(r.html).toContain('&lt;/script&gt;');
+    expect(r.html).toContain('<td class="align-left">hi</td>');
+  });
+});

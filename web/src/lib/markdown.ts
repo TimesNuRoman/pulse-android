@@ -21,6 +21,13 @@
  *   - Numbered list: `1. item`
  *   - Blockquote: `> text`
  *   - Wikilink: `[[Title]]` or `[[Title|alias]]`
+ *   - Table (R146): GFM pipe syntax with optional alignment via the
+ *     separator row. Header must start with `|`. Separator cells must be
+ *     a run of `-` (1+) optionally bracketed by `:`; `:---` = left,
+ *     `---:` = right, `:---:` = center, plain `---` = left (GFM default).
+ *     Cell content is passed through renderInline so `**bold**`, `*italic*`,
+ *     `` `code` `` and `[[wikilink]]` all work inside cells. Pipe escape
+ *     (`\|`) is intentionally NOT supported in v1 — strict mode only.
  *
  * Sanitization model:
  *   - User-supplied HTML is escaped by the parser (it never appears raw).
@@ -136,6 +143,17 @@ function renderBlock(
 
   const lines = trimmed.split('\n');
 
+  // Table (R146): GitHub-flavored pipe syntax. Header + separator + body.
+  // Detection is strict: header must start with `|`, each separator cell
+  // must be a run of `-` (1+) optionally bracketed by `:`, header and
+  // separator must have the same column count. Inline markdown is applied
+  // per cell via renderInline so the existing sanitization pipeline still
+  // escapes raw HTML.
+  if (lines.length >= 2) {
+    const t = parseTable(lines, titleSet, wikilinks, seen, inlineCodes);
+    if (t.isTable) return t.html;
+  }
+
   // Blockquote: every line starts with `> ` or `>`.
   if (lines.every((l) => /^>\s?/.test(l))) {
     const content = lines
@@ -249,6 +267,118 @@ function renderInline(
   }
 
   return out;
+}
+
+// R146 — table support. The separator row encodes alignment: a leading
+// `:` is left-align, a trailing `:` is right-align, both is center. Plain
+// `---` (or any run of dashes) is left-align — the GFM default. The
+// `-+` quantifier is intentionally 1+ (not 3+) to match the GFM spec.
+type Alignment = 'left' | 'center' | 'right';
+
+const TABLE_LINE_START_RE = /^\s*\|/;
+const TABLE_SEP_CELL_RE = /^\s*:?-+:?\s*$/;
+
+function splitTableRow(line: string): string[] {
+  // Strip leading/trailing `|` if present, then split the inner text on
+  // `|`. Both styles are accepted (with or without outer pipes) so the
+  // parser is forgiving on small typos.
+  const trimmed = line.trim();
+  let inner = trimmed;
+  if (inner.startsWith('|')) inner = inner.slice(1);
+  if (inner.endsWith('|')) inner = inner.slice(0, -1);
+  return inner.split('|');
+}
+
+function parseAlignment(sepCell: string): Alignment {
+  const s = sepCell.trim();
+  const leftColon = s.startsWith(':');
+  const rightColon = s.endsWith(':');
+  if (leftColon && rightColon) return 'center';
+  if (rightColon) return 'right';
+  return 'left';
+}
+
+function parseTable(
+  lines: string[],
+  titleSet: Set<string>,
+  wikilinks: WikilinkRef[],
+  seen: Set<string>,
+  inlineCodes: string[],
+): { html: string; isTable: boolean } {
+  if (lines.length < 2) return { html: '', isTable: false };
+
+  const headerLine = lines[0];
+  const sepLine = lines[1];
+
+  // Both header and separator must start with `|`. Without this guard the
+  // parser would try to interpret a 2-line indented note or a list with
+  // matching widths as a table.
+  if (!TABLE_LINE_START_RE.test(headerLine)) return { html: '', isTable: false };
+  if (!TABLE_LINE_START_RE.test(sepLine)) return { html: '', isTable: false };
+
+  const headerCells = splitTableRow(headerLine);
+  const sepCells = splitTableRow(sepLine);
+
+  // Column count must match between header and separator; otherwise fall
+  // back to paragraph rendering and let the block-level fallback handle it.
+  if (headerCells.length === 0) return { html: '', isTable: false };
+  if (headerCells.length !== sepCells.length) return { html: '', isTable: false };
+  for (const c of sepCells) {
+    if (!TABLE_SEP_CELL_RE.test(c)) return { html: '', isTable: false };
+  }
+
+  const alignments = sepCells.map(parseAlignment);
+  const colspan = headerCells.length;
+
+  // Header row — `<th scope="col">` per hard rule 12 (accessibility). The
+  // class hooks the alignment into the MarkdownPreview stylesheet.
+  const thCells = headerCells
+    .map((cell, i) => {
+      const align = alignments[i] ?? 'left';
+      const text = cell.trim();
+      return `<th scope="col" class="align-${align}">${renderInline(
+        text,
+        titleSet,
+        wikilinks,
+        seen,
+        inlineCodes,
+      )}</th>`;
+    })
+    .join('');
+
+  // Body rows. Each row is split into cells, then padded / truncated to
+  // match the header column count. Empty / blank lines are skipped.
+  const bodyRows: string[] = [];
+  for (let i = 2; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.trim() === '') continue;
+    const cells = splitTableRow(line);
+    const tdParts: string[] = [];
+    for (let j = 0; j < colspan; j++) {
+      const cell = (cells[j] ?? '').trim();
+      const align = alignments[j] ?? 'left';
+      tdParts.push(
+        `<td class="align-${align}">${renderInline(
+          cell,
+          titleSet,
+          wikilinks,
+          seen,
+          inlineCodes,
+        )}</td>`,
+      );
+    }
+    bodyRows.push(`<tr>${tdParts.join('')}</tr>`);
+  }
+
+  const head = `<thead>\n<tr>${thCells}</tr>\n</thead>`;
+  // No body rows → omit <tbody> entirely. The empty <tbody> would still
+  // be valid HTML but it adds noise and breaks the "table-with-just-a-
+  // header" UI test (a single header line is rare; the user almost always
+  // wants at least one data row).
+  const body = bodyRows.length > 0 ? `<tbody>\n${bodyRows.join('\n')}\n</tbody>` : '';
+  const html = `<table>\n${head}${body.length > 0 ? `\n${body}` : ''}\n</table>`;
+
+  return { html, isTable: true };
 }
 
 function escapeHtml(s: string): string {

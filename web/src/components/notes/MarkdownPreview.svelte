@@ -147,4 +147,33 @@
   }
   .md-preview :global(ul),
   .md-preview :global(ol) { padding-left: 24px; }
+  /* R146 — GFM tables. Tokyo Night palette, no hardcoded hex (fallbacks
+     are only for non-app.css contexts like Storybook). Header row uses
+     --tn-bg-elevated for surface; body uses --tn-fg-dim. Alignment is
+     driven by `.align-left` / `.align-center` / `.align-right` classes
+     that the parser sets on each <th> and <td>. */
+  .md-preview :global(table) {
+    border-collapse: collapse;
+    width: 100%;
+    margin: var(--tn-sp-3, 12px) 0;
+    font-size: var(--tn-font-body, 16px);
+  }
+  .md-preview :global(th),
+  .md-preview :global(td) {
+    padding: var(--tn-sp-2, 8px) var(--tn-sp-3, 12px);
+    border-bottom: 1px solid var(--tn-border, #414868);
+    text-align: left;
+    vertical-align: top;
+  }
+  .md-preview :global(th) {
+    color: var(--tn-fg, #c0caf5);
+    font-weight: 600;
+    background: var(--tn-bg-elevated, #24283b);
+  }
+  .md-preview :global(td) {
+    color: var(--tn-fg-dim, #9aa5ce);
+  }
+  .md-preview :global(.align-left) { text-align: left; }
+  .md-preview :global(.align-center) { text-align: center; }
+  .md-preview :global(.align-right) { text-align: right; }
 </style>
