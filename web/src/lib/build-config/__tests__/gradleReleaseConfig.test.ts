@@ -54,12 +54,12 @@ describe('R93b: android/app/build.gradle release pipeline', () => {
     expect(cfg?.hasFallbackForMissingKeystore).toBe(true);
   });
 
-  it('defaultConfig declares versionName "0.6.6"', () => {
-    expect(cfg?.versionName).toBe('0.6.6');
+  it('defaultConfig declares versionName "0.6.7"', () => {
+    expect(cfg?.versionName).toBe('0.6.7');
   });
 
-  it('defaultConfig declares versionCode 16', () => {
-    expect(cfg?.versionCode).toBe(16);
+  it('defaultConfig declares versionCode 17', () => {
+    expect(cfg?.versionCode).toBe(17);
   });
 });
 

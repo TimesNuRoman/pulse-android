@@ -1,5 +1,80 @@
 # Pulse Android — Changelog
 
+## [0.6.7] — R117 polish release — 2026-08-02
+
+### R103 polish — P1 #2 voice input
+
+- Mic button is **disabled** (not just visually muted) when there is no
+  active note open; tap does nothing. P1#2 P2 follow-up to the R102 wire-up.
+- `SpeechRecognition.stop()` is called on `onDestroy` to clean up the
+  Capacitor listener; no more leaked listeners when navigating away from a
+  note mid-recognition.
+- See commit `1b4abe6` (P1 #2 P2 polish).
+
+### R103 — UpdateChecker chain extension (v0.6.5/6 users auto-update)
+
+- The R102 (v0.6.6 public deploy) host is now at the head of the chain:
+  `ncfosklh79sxf.space.minimax.io`. Without this, v0.6.5/6 users kept
+  polling R92 and saw "you're up to date" forever.
+- Chain grew from 7 → 8 entries; R102 is index 0, R92 (v0.6.5) is index 1,
+  R90 (v0.6.4) is index 2, R88 (v0.6.3) is index 3.
+- See commit `c836ff8` (R103 update-checker chain).
+
+### P1 trio (carried over from v0.6.6 prep)
+
+All three P1 fixes from the v0.6.6 audit are in this release:
+
+- **P1 #1** — `ac77e40` — `android:dataExtractionRules` + `fullBackupContent`
+  exclude `app_webview` (Capacitor store) from cloud-backup and
+  device-transfer. Closes the silent-WebView-in-backup regression.
+- **P1 #2** — `97fa474` + `1b4abe6` — `SpeechRecognition` wired into the
+  `NoteToolbar` mic button; P2 polish disables the button without an active
+  note and stops the listener on destroy.
+- **P1 #3** — `a07a22f` — `SettingsView` (Profile / Theme / About / Actions)
+  reachable from the drawer; closes the missing-settings gap.
+
+### Tests
+
+- 322/322 vitest (was 304/304 at v0.6.6, +18 across P1/R103).
+- New test in `update-checker.test.ts` pins v0.6.7/17 + R102 chain head.
+- `gradleReleaseConfig.test.ts` version assertions bumped to 0.6.7/17.
+
+### Build
+
+- `web/dist/`: vite build (260 modules, ~5s).
+- `cap sync android` — syncs web assets into `android/app/src/src/main/assets/public/`.
+- `gradlew.bat assembleRelease` — full release build (incremental 14s on
+  warm daemon), v2+v3 signing (R93b keystore).
+
+### APK
+
+```
+android/app/build/outputs/apk/release/app-release.apk
+size:    1.29 MB (1,352,929 bytes)
+sha256:  39656F6C533016E7E6CF26210E81A09805ADE0E17E8B88107887082DB03468D8
+versionName: 0.6.7
+versionCode: 17
+signing:     v2 + v3 (v1 disabled, R95a; v2 true, v3 true)
+signer DN:   CN=Pulse Notes, OU=Pulse, O=Lesside, L=Brest, ST=Brest, C=BY
+signer SHA-256: fdbd5f612943d641c899809bc13985c2ad1238538d6b6eccc41e0e795007bfef (R93b)
+minSdk:      24
+targetSdk:   36
+```
+
+### Deploy (R103 chain)
+
+- **APK canonical**: TBD (added at R118 deploy time)
+- **Manifest (R102 head)**: https://ncfosklh79sxf.space.minimax.io/android.json
+- **Chain order** (R103, head → tail):
+  1. https://ncfosklh79sxf.space.minimax.io/android.json (R102, v0.6.6)
+  2. https://yv5eeknt6h6sa.space.minimax.io/android.json (R92,  v0.6.5)
+  3. https://ad67rp710vsl7.space.minimax.io/android.json (R90,  v0.6.4)
+  4. https://32dhrw35m4x2v.space.minimax.io/android.json (R88,  v0.6.3)
+  5. https://7n8sb1bsnx9h.space.minimax.io/android.json  (R86,  v0.6.2)
+  6. https://wztgxiy1eu29i.space.minimax.io/android.json (R81,  v0.6.1)
+  7. https://813khigmhk9k8.space.minimax.io/android.json (R78,  v0.6.0)
+  8. https://9c3f928.space.minimax.io/android.json       (R74,  v0.5.x)
+
 ## [0.6.2] — R84 onboarding v2 — 2026-08-01
 
 ### Onboarding v2 — 4 screens

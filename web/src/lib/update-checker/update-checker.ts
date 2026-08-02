@@ -63,8 +63,8 @@ import { isNative } from '$lib/capacitor';
 // ---------- Constants ----------
 
 /** Build-time version. Bump alongside android/app/build.gradle. */
-export const APP_VERSION = '0.6.6';
-export const APP_VERSION_CODE = 16;
+export const APP_VERSION = '0.6.7';
+export const APP_VERSION_CODE = 17;
 
 /**
  * Default manifest URL. Retained for backward compat with R88 callers

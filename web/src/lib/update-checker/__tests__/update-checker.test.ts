@@ -525,9 +525,20 @@ describe('resolveManifestUrls (R90)', () => {
     expect(urls[0]).toBe('https://custom.example.com/m.json');
     expect(urls[1]).toContain('ncfosklh79sxf');
   });
-  it('APP_VERSION / APP_VERSION_CODE reflect v0.6.6 / 16', () => {
-    expect(APP_VERSION).toBe('0.6.6');
-    expect(APP_VERSION_CODE).toBe(16);
+  it('APP_VERSION / APP_VERSION_CODE reflect v0.6.7 / 17', () => {
+    expect(APP_VERSION).toBe('0.6.7');
+    expect(APP_VERSION_CODE).toBe(17);
+  });
+  it('R117 v0.6.7: installed app version is 0.6.7/17 and the R102 (ncfosklh79sxf) host is the chain head', () => {
+    // Locks the R117 release state: in-app version is bumped to 0.6.7/17,
+    // and the R102 (v0.6.6 public deploy at ncfosklh79sxf.space.minimax.io)
+    // stays at the head of the chain so v0.6.5/6/7 users on a down R102
+    // host still see "up to date" until R117 v0.6.7 is published.
+    expect(APP_VERSION).toBe('0.6.7');
+    expect(APP_VERSION_CODE).toBe(17);
+    const urls = resolveManifestUrls(null);
+    expect(urls[0]).toContain('ncfosklh79sxf.space.minimax.io');
+    expect(urls[0]).toContain('/android.json');
   });
   it('chain length grew from 5 (R90) to 7 (R93) to 8 (R103: +R102)', () => {
     // R93 added R92 (yv5eeknt6h6sa) at index 0 and R90 (ad67rp710vsl7) at
