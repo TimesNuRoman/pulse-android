@@ -24,7 +24,32 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- R173 - deep link from the home screen widget. The widget's
+                 note rows fire pulse://note/{id}; MainActivity receives the
+                 URI and the Svelte layer opens the matching note. -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="pulse" android:host="note" />
+            </intent-filter>
+
         </activity>
+
+        <!-- R173 - home screen AppWidgetProvider for the recent-notes
+             widget. Receives UPDATE on placement and WIDGET_REFRESH when
+             the user taps the refresh button in the widget chrome. -->
+        <receiver
+            android:name=".NotesWidgetProvider"
+            android:exported="true"
+            android:label="Pulse Notes">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/notes_widget_info" />
+        </receiver>
 
         <provider
             android:name="androidx.core.content.FileProvider"
