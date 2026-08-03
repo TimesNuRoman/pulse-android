@@ -1,6 +1,7 @@
 import { writable, derived, get, type Writable } from 'svelte/store';
 import type { Note } from './notesBacklinks';
 import { extractTags, buildBacklinkIndex, countTags } from './notesBacklinks';
+import { sortNotes } from './notesSort';
 
 const STORAGE_KEY = 'pulse.notes.v1';
 
@@ -221,6 +222,38 @@ function createNotesStore() {
         notes.map((n) => (n.id === id ? { ...n, ...patch, updatedAt: Date.now() } : n)),
       );
     },
+    // R187 — pin/favorite. These set `pinnedAt` without touching
+    // `updatedAt` (pinning is metadata, not a content edit, so it must
+    // not reshuffle the unpinned section). Returns `true` if the note
+    // was found, `false` if the id is unknown. The boolean lets the UI
+    // fire its "no-op" haptic branch without an extra `get()`.
+    pinNote(id: string): boolean {
+      let found = false;
+      store.update((notes) =>
+        notes.map((n) => {
+          if (n.id !== id) return n;
+          found = true;
+          return { ...n, pinnedAt: new Date().toISOString() };
+        }),
+      );
+      return found;
+    },
+    unpinNote(id: string): boolean {
+      let found = false;
+      store.update((notes) =>
+        notes.map((n) => {
+          if (n.id !== id) return n;
+          found = true;
+          return { ...n, pinnedAt: null };
+        }),
+      );
+      return found;
+    },
+    togglePin(id: string): boolean {
+      const current = get(store).find((n) => n.id === id);
+      if (!current) return false;
+      return current.pinnedAt ? this.unpinNote(id) : this.pinNote(id);
+    },
     delete(id: string): void {
       store.update((notes) => notes.filter((n) => n.id !== id));
     },
@@ -232,9 +265,9 @@ function createNotesStore() {
 
 export const notesStore = createNotesStore();
 
-export const sortedNotes = derived(notesStore, ($notes) =>
-  [...$notes].sort((a, b) => b.updatedAt - a.updatedAt),
-);
+// R187 — sortedNotes now respects pin state via sortNotes(): pinned
+// notes first (by pinnedAt desc), then unpinned (by updatedAt desc).
+export const sortedNotes = derived(notesStore, ($notes) => sortNotes($notes));
 
 export const backlinkIndex = derived(notesStore, ($notes) => buildBacklinkIndex($notes));
 

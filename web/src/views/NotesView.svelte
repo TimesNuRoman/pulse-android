@@ -81,6 +81,15 @@
     view = 'list';
   }
 
+  // R187 — pin/favorite. The store returns true if the id matched
+  // (so we can decide whether to fire the haptic without a redundant
+  // get()). Tap-style = 'selection' (R118): pin is a "state flip" and
+  // belongs to the same family as tab switches, not content edits.
+  function togglePin(id: string): void {
+    const found = notesStore.togglePin(id);
+    if (found) void tap('selection');
+  }
+
   // R118 — debounce save haptics so the user feels one `light` tap per
   // "save burst" (after they pause typing), not one per keystroke.
   let lastSaveHapticAt = 0;
@@ -225,7 +234,7 @@
     </header>
     <ul class="notes-view__list" data-testid="notes-list">
       {#each notes as n (n.id)}
-        <li>
+        <li class="notes-list__item" class:notes-list__item--pinned={!!n.pinnedAt}>
           <button
             type="button"
             class="notes-card"
@@ -243,6 +252,32 @@
                 <span class="notes-card__tags">#{n.tags.join(' #')}</span>
               {/if}
             </div>
+          </button>
+          <button
+            type="button"
+            class="notes-list__pin-btn"
+            onclick={() => togglePin(n.id)}
+            aria-label={n.pinnedAt ? 'Unpin note' : 'Pin note'}
+            aria-pressed={!!n.pinnedAt}
+            title={n.pinnedAt ? 'Unpin' : 'Pin'}
+            data-testid={`pin-btn-${n.id}`}
+          >
+            <svg
+              class="notes-list__pin-icon"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill={n.pinnedAt ? 'currentColor' : 'none'}
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <!-- 5-point star — universally readable "favorite/important" mark.
+                   fill toggles via aria-pressed → currentColor (purple when pinned). -->
+              <path d="M12 2 L14.5 8.8 L22 9.3 L16.5 14.1 L18.3 21.5 L12 17.5 L5.7 21.5 L7.5 14.1 L2 9.3 L9.5 8.8 Z" />
+            </svg>
           </button>
         </li>
       {/each}
@@ -302,6 +337,31 @@
         data-testid="copy-btn"
       >
         Copy
+      </button>
+      <button
+        type="button"
+        class="btn btn--ghost notes-view__header-pin"
+        onclick={() => activeNote && togglePin(activeNote.id)}
+        aria-label={activeNote.pinnedAt ? 'Unpin note' : 'Pin note'}
+        aria-pressed={!!activeNote.pinnedAt}
+        title={activeNote.pinnedAt ? 'Unpin' : 'Pin'}
+        data-testid="header-pin-btn"
+      >
+        <svg
+          class="notes-view__header-pin-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill={activeNote.pinnedAt ? 'currentColor' : 'none'}
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 2 L14.5 8.8 L22 9.3 L16.5 14.1 L18.3 21.5 L12 17.5 L5.7 21.5 L7.5 14.1 L2 9.3 L9.5 8.8 Z" />
+        </svg>
+        {activeNote.pinnedAt ? 'Unpin' : 'Pin'}
       </button>
       <button
         type="button"
@@ -660,5 +720,79 @@
   }
   .btn--danger:hover {
     background: rgba(247, 118, 142, 0.1);
+  }
+
+  /* R187 — pin/favorite row layout. The list <li> becomes a flex row:
+     the existing notes-card takes the remaining width, and the pin
+     button sits to its right with a 48dp touch target (M3 preferred). */
+  .notes-list__item {
+    display: flex;
+    align-items: stretch;
+    gap: var(--tn-sp-2, 8px);
+  }
+  .notes-list__item .notes-card {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .notes-list__item--pinned .notes-card {
+    border-left: 3px solid var(--tn-accent-purple, #bb9af7);
+  }
+  .notes-list__pin-btn {
+    flex: 0 0 auto;
+    /* 48dp M3 preferred touch target. The icon inside is 16x16 — the
+       wrapper carries the touch size, the SVG is just the glyph. */
+    min-width: var(--tn-touch-pref, 48px);
+    min-height: var(--tn-touch-pref, 48px);
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--tn-bg-elevated, #24283b);
+    border: 1px solid var(--tn-border, #414868);
+    border-radius: var(--tn-radius-md, 12px);
+    color: var(--tn-fg-dim, #9aa5ce);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .notes-list__pin-btn[aria-pressed='true'] {
+    color: var(--tn-accent-purple, #bb9af7);
+    border-color: var(--tn-accent-purple, #bb9af7);
+  }
+  .notes-list__pin-btn:hover {
+    color: var(--tn-fg, #c0caf5);
+    border-color: var(--tn-fg-dim, #9aa5ce);
+  }
+  .notes-list__pin-btn[aria-pressed='true']:hover {
+    color: var(--tn-accent-purple, #bb9af7);
+  }
+  .notes-list__pin-btn:focus-visible {
+    outline: 2px solid var(--tn-accent-blue, #7aa2f7);
+    outline-offset: 2px;
+  }
+  .notes-list__pin-icon {
+    display: block;
+  }
+
+  /* R187 — single-note header pin button. Same icon, same color rule,
+     but inside the existing btn--ghost styling so it lines up with
+     Share/Copy visually. Min-height 44dp is already set by .btn. */
+  .notes-view__header-pin {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .notes-view__header-pin[aria-pressed='true'] {
+    color: var(--tn-accent-purple, #bb9af7);
+    border-color: var(--tn-accent-purple, #bb9af7);
+  }
+  .notes-view__header-pin-icon {
+    display: block;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .notes-list__pin-btn,
+    .notes-view__header-pin {
+      transition: none;
+    }
   }
 </style>
