@@ -227,6 +227,15 @@ function createNotesStore() {
     resetToMocks(): void {
       store.set(MOCK_NOTES);
     },
+    /**
+     * Replace the entire note set with the provided list. Used by the
+     * backup/restore import flow (R152). The notes' ids, createdAt, and
+     * updatedAt are preserved as-given so a merge-by-id round trip works
+     * correctly.
+     */
+    replaceAll(next: Note[]): void {
+      store.set(next.map((n) => ({ ...n })));
+    },
   };
 }
 

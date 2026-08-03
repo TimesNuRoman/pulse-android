@@ -85,3 +85,19 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
     disconnect(): void {}
   };
 }
+
+// jsdom 25 doesn't implement URL.createObjectURL / revokeObjectURL.
+// R152 backup-restore uses these to trigger a download. The test
+// asserts the transport + filename, not the actual download side effect.
+if (typeof URL !== 'undefined') {
+  const urlProto = URL as unknown as {
+    createObjectURL?: (obj: Blob | MediaSource) => string;
+    revokeObjectURL?: (url: string) => void;
+  };
+  if (typeof urlProto.createObjectURL !== 'function') {
+    urlProto.createObjectURL = (): string => 'blob:mock';
+  }
+  if (typeof urlProto.revokeObjectURL !== 'function') {
+    urlProto.revokeObjectURL = (): void => undefined;
+  }
+}
