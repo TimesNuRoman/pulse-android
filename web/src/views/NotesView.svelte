@@ -5,6 +5,9 @@
   import NoteToolbar, { type ToolbarAction } from '../components/notes/NoteToolbar.svelte';
   import TagAutocomplete from '../components/notes/TagAutocomplete.svelte';
   import TemplatePicker from '../components/TemplatePicker.svelte';
+  import TagInput from '../components/notes/TagInput.svelte';
+  import TagChip from '../components/notes/TagChip.svelte';
+  import TagFilterBar from '../components/notes/TagFilterBar.svelte';
   import SplitPane from '../components/notes/SplitPane.svelte';
   import NotesSearch from '../components/NotesSearch.svelte';
   import SettingsView from './SettingsView.svelte';
@@ -14,6 +17,7 @@
     archivedSortedNotes,
     allTags,
     backlinkIndex,
+    noteTagsList,
   } from '../lib/notesStore';
   import {
     extractBacklinks,
@@ -85,6 +89,11 @@
   let templateOpen: boolean = $state(false);
   let templateButtonEl: HTMLButtonElement | undefined = $state();
 
+  // R140 — tag filter state. `selectedTagFilters` is an OR filter: a
+  // note passes if it has at least one of the selected tags. Empty
+  // selection = no filter.
+  let selectedTagFilters: string[] = $state([]);
+
   function openSettings(): void {
     // R118 — tab switch (Settings/Notes) is a `selection` tick.
     void tap('selection');
@@ -116,11 +125,32 @@
 
   // R193 — notes full-text search. Empty query → upstream `$activeSortedNotes`
   // (preserves R202 archive filter + R187 sort). Non-empty → 6-level scored + tiebroken result.
-  const visibleNotes = $derived(
+  const searchFilteredNotes = $derived(
     searchQuery.trim() ? searchNotes($activeSortedNotes, searchQuery) : $activeSortedNotes,
   );
+  // R140 — tags from the active note's `tags` field (user-set), shown
+  // as chips below the title. Distinct from `noteTags` (body-extracted).
+  const activeNoteTags = $derived(activeNote?.tags ?? []);
+  // R140 — tag counts derived from `note.tags` (for the filter bar),
+  // distinct from `tags` (which is body-extracted).
+  const noteFieldTags = $derived($noteTagsList);
+  // (the import was already added; this is the read site)
+  // R193 + R140 — visible list combines search AND tag filter (OR). Tag
+  // filter applies AFTER search so counts in the search bar reflect the
+  // search-scoped set, not the pre-search set.
+  const visibleNotes = $derived.by((): Note[] => {
+    if (selectedTagFilters.length === 0) return searchFilteredNotes;
+    const set = new Set(selectedTagFilters);
+    return searchFilteredNotes.filter((n) => {
+      const t = n.tags ?? [];
+      for (const tag of t) {
+        if (set.has(tag)) return true;
+      }
+      return false;
+    });
+  });
   const notes = $derived(visibleNotes);
-  const searchResultCount = $derived(notes.length);
+  const searchResultCount = $derived(searchFilteredNotes.length);
 
   // R193 — fire a `selection` haptic on empty ↔ non-empty filter transitions
   // (start a search, clear a search). Mid-typing transitions stay quiet.
@@ -425,6 +455,27 @@
     const stub = notesStore.createStubNote(target, activeNoteId);
     openNote(stub.id);
   }
+
+  // R140 — user-set tag mutations on the active note.
+  function onTagInputAdd(tags: string[]): void {
+    if (!activeNoteId || !tags || tags.length === 0) return;
+    void tap('light');
+    for (const t of tags) notesStore.addTag(activeNoteId, t);
+  }
+  function onTagInputRemove(tag: string): void {
+    if (!activeNoteId || !tag) return;
+    void tap('light');
+    notesStore.removeTag(activeNoteId, tag);
+  }
+  function onActiveTagRemove(tag: string): void {
+    if (!activeNoteId) return;
+    void tap('light');
+    notesStore.removeTag(activeNoteId, tag);
+  }
+  function onTagFilterChange(next: string[]): void {
+    selectedTagFilters = next;
+    if (next.length > 0) void tap('selection');
+  }
 </script>
 
 <main class="notes-view" data-testid="notes-view" data-view={view}>
@@ -525,8 +576,32 @@
       filteredCount={searchResultCount}
       totalCount={$activeSortedNotes.length}
     />
+    <TagFilterBar
+      tags={noteFieldTags}
+      selected={selectedTagFilters}
+      onChange={onTagFilterChange}
+    />
+    {#if visibleNotes.length === 0}
+      <div class="notes-view__empty-state" data-testid="notes-empty">
+        <p>
+          {selectedTagFilters.length > 0
+            ? 'No notes match the selected tag filter.'
+            : 'No notes yet.'}
+        </p>
+        {#if selectedTagFilters.length > 0}
+          <button
+            type="button"
+            class="btn btn--ghost"
+            onclick={() => onTagFilterChange([])}
+            data-testid="clear-filters-btn"
+          >
+            Clear filters
+          </button>
+        {/if}
+      </div>
+    {:else}
     <ul class="notes-view__list" data-testid="notes-list">
-      {#each notes as n (n.id)}
+      {#each visibleNotes as n (n.id)}
         <li class="notes-list__item" class:notes-list__item--pinned={!!n.pinnedAt}>
           <button
             type="button"
@@ -578,6 +653,7 @@
         </li>
       {/each}
     </ul>
+    {/if}
   {:else if view === 'note' && activeNote}
     <header class="notes-view__header notes-view__header--note">
       <button
@@ -757,6 +833,21 @@
         Delete
       </button>
     </header>
+
+    <!-- R140 — per-note tag chips + tag input. Lives below the title
+         (inside the note view, above the toolbar). Body-extracted
+         `#tag` patterns still render in the footer below. -->
+    <div class="notes-view__tag-row" data-testid="note-tag-row">
+      {#each activeNoteTags as tag (tag)}
+        <TagChip {tag} onRemove={onActiveTagRemove} />
+      {/each}
+      <TagInput
+        existingTags={activeNoteTags}
+        placeholder="add tag…"
+        onAdd={onTagInputAdd}
+        onRemove={onTagInputRemove}
+      />
+    </div>
 
     <NoteToolbar
       onAction={onToolbarAction}
@@ -1111,6 +1202,32 @@
     border: 1px solid var(--tn-border, #414868);
     border-radius: 12px;
     color: var(--tn-fg, #c0caf5);
+  }
+
+  /* R140 — tag chip row below the note title. Hosts the active note's
+     user-set tags + a TagInput. Stays above the toolbar so it's
+     always visible regardless of editor mode. */
+  .notes-view__tag-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--tn-bg-elevated, #24283b);
+    border-bottom: 1px solid var(--tn-border, #414868);
+  }
+
+  /* R140 — empty state for the list view. Shown when tag filter
+     yields zero matches (or when there are no notes at all). */
+  .notes-view__empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 32px 16px;
+    color: var(--tn-fg-muted, #565f89);
+    text-align: center;
   }
 
   .notes-view__backlinks-panel {
