@@ -1,6 +1,13 @@
 import { writable, derived, get, type Writable } from 'svelte/store';
 import type { Note } from './notesBacklinks';
 import { extractTags, buildBacklinkIndex, countTags } from './notesBacklinks';
+import {
+  archiveNote as archiveNotePure,
+  restoreNote as restoreNotePure,
+  getArchivedNotes as getArchivedNotesPure,
+  getActiveNotes as getActiveNotesPure,
+  emptyArchive as emptyArchivePure,
+} from './notesArchive';
 
 const STORAGE_KEY = 'pulse.notes.v1';
 
@@ -227,6 +234,56 @@ function createNotesStore() {
     resetToMocks(): void {
       store.set(MOCK_NOTES);
     },
+    /**
+     * Archive a note (reversible delete). Returns the updated note, or
+     * `undefined` if no note with `id` exists. Re-archive on an already
+     * archived note is a no-op (idempotent — original timestamp preserved).
+     */
+    archiveNote(id: string, now?: number): Note | undefined {
+      const before = get(store).find((n) => n.id === id);
+      if (!before) return undefined;
+      const updated = archiveNotePure(before, now);
+      if (updated === before) return before; // no-op path
+      store.update((notes) => notes.map((n) => (n.id === id ? updated : n)));
+      return updated;
+    },
+    /**
+     * Restore a note from the archive. Returns the updated note, or
+     * `undefined` if no note with `id` exists. No-op if the note is
+     * already active.
+     */
+    restoreNote(id: string): Note | undefined {
+      const before = get(store).find((n) => n.id === id);
+      if (!before) return undefined;
+      const updated = restoreNotePure(before);
+      if (updated === before) return before; // no-op path
+      store.update((notes) => notes.map((n) => (n.id === id ? updated : n)));
+      return updated;
+    },
+    /**
+     * Return archived notes (defensive copy) sorted by `archivedAt` desc.
+     */
+    getArchivedNotes(): Note[] {
+      return getArchivedNotesPure(get(store));
+    },
+    /**
+     * Return active (non-archived) notes (defensive copy, original order).
+     */
+    getActiveNotes(): Note[] {
+      return getActiveNotesPure(get(store));
+    },
+    /**
+     * Permanently delete every archived note. Returns the notes that were
+     * removed (useful for "undo" toasts in the future).
+     */
+    emptyArchive(): Note[] {
+      const all = get(store);
+      const removed = getArchivedNotesPure(all);
+      if (removed.length === 0) return removed;
+      const next = emptyArchivePure(all);
+      store.set(next);
+      return removed;
+    },
   };
 }
 
@@ -235,6 +292,18 @@ export const notesStore = createNotesStore();
 export const sortedNotes = derived(notesStore, ($notes) =>
   [...$notes].sort((a, b) => b.updatedAt - a.updatedAt),
 );
+
+export const activeSortedNotes = derived(notesStore, ($notes) =>
+  getActiveNotesPure($notes).sort((a, b) => b.updatedAt - a.updatedAt),
+);
+
+export const archivedSortedNotes = derived(notesStore, ($notes) =>
+  getArchivedNotesPure($notes),
+);
+
+// Re-export the pure helpers so consumers can `import` from `notesStore`
+// without a second import path.
+export { isArchived } from './notesArchive';
 
 export const backlinkIndex = derived(notesStore, ($notes) => buildBacklinkIndex($notes));
 

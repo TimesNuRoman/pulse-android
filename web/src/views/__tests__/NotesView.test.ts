@@ -119,4 +119,53 @@ describe('NotesView', () => {
     await fireEvent.input(title, { target: { value: 'Renamed note' } });
     expect(notesStore.get('n1')?.title).toBe('Renamed note');
   });
+
+  // R202 — archive flow
+  it('Archive button archives the current note and returns to list', async () => {
+    render(NotesView);
+    await fireEvent.click(screen.getByTestId('note-card-n1'));
+    expect(notesStore.get('n1')?.archivedAt ?? null).toBeNull();
+    await fireEvent.click(screen.getByTestId('archive-btn'));
+    expect(notesStore.get('n1')?.archivedAt).toBeTypeOf('number');
+    expect(screen.getByTestId('notes-view')).toHaveAttribute('data-view', 'list');
+  });
+
+  it('View archived opens the archive view', async () => {
+    notesStore.archiveNote('n2');
+    render(NotesView);
+    await fireEvent.click(screen.getByTestId('view-archive'));
+    expect(screen.getByTestId('notes-view')).toHaveAttribute('data-view', 'archive');
+    expect(screen.getByTestId('archive-list')).toBeInTheDocument();
+  });
+
+  it('Restore button on archived note clears archivedAt', async () => {
+    notesStore.archiveNote('n3');
+    render(NotesView);
+    await fireEvent.click(screen.getByTestId('view-archive'));
+    await fireEvent.click(screen.getByTestId('restore-n3'));
+    expect(notesStore.get('n3')?.archivedAt).toBeNull();
+  });
+
+  it('Empty archive requires confirm', async () => {
+    notesStore.archiveNote('n1');
+    notesStore.archiveNote('n2');
+    render(NotesView);
+    await fireEvent.click(screen.getByTestId('view-archive'));
+    // First tap: opens confirm
+    await fireEvent.click(screen.getByTestId('empty-archive-btn'));
+    expect(screen.getByTestId('empty-archive-confirm')).toBeInTheDocument();
+    expect(notesStore.get('n1')).toBeDefined();
+    // Confirm tap: actually empties
+    await fireEvent.click(screen.getByTestId('empty-archive-confirm-btn'));
+    expect(notesStore.getArchivedNotes().length).toBe(0);
+  });
+
+  it('Archived notes do not appear in main list', async () => {
+    notesStore.archiveNote('n1');
+    render(NotesView);
+    const list = screen.getByTestId('notes-list');
+    const items = list.querySelectorAll('li');
+    // MOCK_NOTES has 8 notes, n1 is archived → 7 visible
+    expect(items.length).toBe(7);
+  });
 });

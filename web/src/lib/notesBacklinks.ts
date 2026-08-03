@@ -13,10 +13,20 @@ export interface Note {
   createdAt: number;
   updatedAt: number;
   tags?: string[];
+  /**
+   * Archive timestamp (epoch ms). `null` = active, number = archived.
+   * Archived notes are hidden from the main list, preserved for restore.
+   * Reversible delete — see `./notesArchive.ts` for the pure helpers.
+   */
+  archivedAt?: number | null;
 }
 
 const WIKILINK_RE = /\[\[([^\[\]\n]+?)\]\]/g;
 const TAG_FIND_RE = /#([A-Za-z][A-Za-z0-9_-]{0,63})/g;
+
+// Re-exported here so existing call sites that import from `notesBacklinks`
+// don't need a second import to use the archive API.
+export { isArchived, archiveNote, restoreNote } from './notesArchive';
 
 /**
  * Decide whether a `#` at `hashPos` starts a tag in `content`.
