@@ -3,12 +3,14 @@
   import MarkdownPreview from '../components/notes/MarkdownPreview.svelte';
   import NoteToolbar, { type ToolbarAction } from '../components/notes/NoteToolbar.svelte';
   import TagAutocomplete from '../components/notes/TagAutocomplete.svelte';
+  import TemplatePicker from '../components/TemplatePicker.svelte';
   import SplitPane from '../components/notes/SplitPane.svelte';
   import SettingsView from './SettingsView.svelte';
   import { notesStore, sortedNotes, allTags, backlinkIndex } from '../lib/notesStore';
   import { extractBacklinks, extractTags, type Note } from '../lib/notesBacklinks';
   import { share, copyToClipboard, hapticImpact } from '../lib/capacitor';
   import { tap } from '../lib/haptics';
+  import { substituteTemplate, type NoteTemplate } from '../lib/noteTemplates';
 
   type Mode = 'source' | 'preview' | 'split';
   type View = 'list' | 'note';
@@ -30,6 +32,10 @@
   let tagPopupOpen: boolean = $state(false);
   let tagQuery: string = $state('');
   let tagAnchor: 'top' | 'bottom' = $state('top');
+
+  // R190 — note template picker state
+  let templateOpen: boolean = $state(false);
+  let templateButtonEl: HTMLButtonElement | undefined = $state();
 
   function openSettings(): void {
     // R118 — tab switch (Settings/Notes) is a `selection` tick.
@@ -67,6 +73,22 @@
 
   function createNote(): void {
     const note = notesStore.create('# New note\n\nStart writing…');
+    openNote(note.id);
+  }
+
+  // R190 — open the template picker (R118 selection haptic on toggle).
+  function openTemplatePicker(): void {
+    void tap('selection');
+    templateOpen = !templateOpen;
+  }
+  function closeTemplatePicker(): void {
+    templateOpen = false;
+  }
+  // R190 — pick a template, create the note with the substituted body, open it.
+  function pickTemplate(t: NoteTemplate): void {
+    const body = substituteTemplate(t);
+    const note = notesStore.create(body);
+    templateOpen = false;
     openNote(note.id);
   }
 
@@ -195,6 +217,44 @@
       <button type="button" class="btn btn--primary" onclick={createNote} data-testid="new-note">
         New note
       </button>
+      <div class="notes-view__template-anchor">
+        <button
+          bind:this={templateButtonEl}
+          type="button"
+          class="btn btn--ghost"
+          onclick={openTemplatePicker}
+          data-testid="open-template-picker"
+          aria-haspopup="listbox"
+          aria-expanded={templateOpen}
+          aria-label="New note from template"
+          title="New from template"
+        >
+          <svg
+            class="notes-view__template-icon"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="3" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="3" width="7" height="7" rx="1" />
+            <rect x="3" y="14" width="7" height="7" rx="1" />
+            <rect x="14" y="14" width="7" height="7" rx="1" />
+          </svg>
+          <span class="notes-view__template-label">Template</span>
+        </button>
+        <TemplatePicker
+          open={templateOpen}
+          trigger={templateButtonEl ?? null}
+          onpick={pickTemplate}
+          ondismiss={closeTemplatePicker}
+        />
+      </div>
       <button
         type="button"
         class="btn btn--ghost notes-view__gear"
@@ -442,6 +502,19 @@
   }
   .notes-view__gear-icon {
     display: block;
+  }
+  /* R190 — anchor wrapper so the popover's `position: absolute` lands
+     under the trigger button rather than the page body. */
+  .notes-view__template-anchor {
+    position: relative;
+    display: inline-flex;
+  }
+  .notes-view__template-icon {
+    display: block;
+    margin-right: 6px;
+  }
+  .notes-view__template-label {
+    font-size: 14px;
   }
   .notes-view__header--note {
     flex-wrap: wrap;
