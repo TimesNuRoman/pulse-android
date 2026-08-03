@@ -179,6 +179,49 @@ button:focus-visible {
   font-size: 0.9em;
 }
 
+/* Collapsible code blocks (R181) — wrap long <pre><code> in <details class="fold">. */
+.md-preview .fold {
+  margin: var(--tn-sp-3) 0;
+}
+.md-preview .fold > pre {
+  margin: 0;
+}
+.md-preview .fold__summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--tn-touch-min);
+  padding: var(--tn-sp-1) var(--tn-sp-3);
+  color: var(--tn-fg-dim);
+  background: transparent;
+  border: 1px solid var(--tn-border);
+  border-radius: var(--tn-radius-sm);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  font-size: var(--tn-font-small);
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.md-preview .fold__summary::-webkit-details-marker { display: none; }
+.md-preview .fold__summary::marker { content: ''; }
+.md-preview .fold__summary::before {
+  content: '\25B8  '; /* U+25B8 BLACK RIGHT-POINTING SMALL TRIANGLE (closed) */
+  display: inline-block;
+  width: 1em;
+  flex: 0 0 auto;
+  color: var(--tn-accent-blue);
+}
+.md-preview .fold[open] > .fold__summary::before {
+  content: '\25BE  '; /* U+25BE BLACK DOWN-POINTING SMALL TRIANGLE (open) */
+}
+.md-preview .fold__summary:hover {
+  color: var(--tn-fg);
+  background: var(--tn-bg-elevated);
+}
+.md-preview .fold__summary:focus-visible {
+  outline: 2px solid var(--tn-accent-blue);
+  outline-offset: 2px;
+}
+
 /* Accessibility helpers */
 .sr-only {
   position: absolute;
