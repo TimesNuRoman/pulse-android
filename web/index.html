@@ -8,6 +8,33 @@
     <title>Pulse Notes</title>
   </head>
   <body>
+    <!--
+      R166 — web splash overlay.
+      Mirrors the native Android splash (dark Tokyo Night + P mark
+      + "Pulse" wordmark) for the few hundred ms before Capacitor's
+      @capacitor/splash-screen plugin (or M3 SplashScreen
+      windowSplashScreenAnimatedIcon on API 31+) takes over on a
+      real device. On a plain browser preview, the splash is also the
+      initial frame; web/src/lib/splash.ts auto-dismisses it after
+      1500ms or when the app signals `pulse-app-ready` (whichever is
+      first). aria-hidden so screen readers skip the duplicated brand
+      content — the title in <head> and the actual NotesView both
+      announce the app name.
+    -->
+    <div
+      id="web-splash"
+      class="web-splash"
+      data-testid="web-splash"
+      aria-hidden="true"
+    >
+      <div class="web-splash__mark" aria-hidden="true">
+        <svg viewBox="0 0 108 108" width="96" height="96" role="img" aria-label="Pulse">
+          <path fill="#7aa2f7" fill-rule="evenodd" d="M 30,28 L 30,80 L 40,80 L 40,64 L 58,64 C 68,64 74,57 74,48 C 74,39 68,28 58,28 L 30,28 Z M 40,38 L 58,38 C 62,38 65,42 65,48 C 65,52 62,56 58,56 L 40,56 L 40,38 Z" />
+          <path fill="#bb9af7" d="M 84,24 L 86,32 L 94,34 L 86,36 L 84,44 L 82,36 L 74,34 L 82,32 Z" />
+        </svg>
+      </div>
+      <div class="web-splash__wordmark" aria-hidden="true">Pulse</div>
+    </div>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

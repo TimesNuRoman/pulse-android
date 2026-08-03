@@ -195,3 +195,36 @@ button:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* R166 — web splash overlay.
+   Mirrors the native Android splash (dark Tokyo Night + P mark +
+   "Pulse" wordmark). Sits above #app; dismissed by src/lib/splash.ts
+   after 1500ms or on the first `pulse-app-ready` event. The
+   `--hidden` modifier triggers a 300ms fade-out before the element is
+   removed from the DOM. */
+.web-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, var(--tn-bg) 0%, #16161e 100%);
+  transition: opacity 0.3s ease-out;
+}
+.web-splash--hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+.web-splash__mark {
+  width: 96px;
+  height: 96px;
+}
+.web-splash__wordmark {
+  margin-top: var(--tn-sp-5);
+  color: var(--tn-fg);
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}

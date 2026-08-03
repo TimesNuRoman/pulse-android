@@ -2,10 +2,17 @@
 <!--
   R81 — Pulse Notes colors. Tokyo Night palette.
   - ic_launcher_background is in its own file (mipmap-anydpi-v26 expects
-    @color/ic_launcher_background by name).
+    @color/ic_launcher_background by name — kept for any code path that
+    still references the color ref even though R166's adaptive-icon
+    background now points at @drawable/ic_launcher_background).
   - splash_bg is referenced by AppTheme.NoActionBarLaunch to prevent
     a white flash before the WebView loads.
   - colorPrimary / colorPrimaryDark / colorAccent keep styles.xml happy.
+  R166 — added pulse_bg_base / pulse_text_primary / pulse_accent.
+  These are the canonical brand palette tokens, named so future code
+  can reference them by purpose instead of by hex. splash_bg / window_bg
+  / colorPrimaryDark all alias pulse_bg_base; the alias is preserved
+  so existing references don't break.
 -->
 <resources>
     <color name="splash_bg">#1a1b26</color>
@@ -13,4 +20,9 @@
     <color name="colorPrimaryDark">#1a1b26</color>
     <color name="colorAccent">#bb9af7</color>
     <color name="window_bg">#1a1b26</color>
+
+    <!-- R166 — Pulse brand palette (Tokyo Night). -->
+    <color name="pulse_bg_base">#1a1b26</color>
+    <color name="pulse_text_primary">#c0caf5</color>
+    <color name="pulse_accent">#7aa2f7</color>
 </resources>

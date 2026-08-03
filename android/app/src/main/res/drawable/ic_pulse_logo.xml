@@ -1,13 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  R166 — Pulse adaptive-icon foreground.
-  Same geometry as drawable/ic_pulse_logo.xml (the master mark), kept as
-  a separate file so the launcher XML (mipmap-anydpi-v26/ic_launcher.xml)
-  can reference it directly via @drawable/ic_launcher_foreground.
-  Tokyo Night palette: P in #7aa2f7 (blue), spark in #bb9af7 (purple).
-  108x108dp viewport. Safe zone is the inner 66x66 (21..87). P + spark
-  are sized to fit inside the safe zone so any OEM mask (circle, squircle,
-  teardrop, rounded square) keeps the mark legible.
+  R166 — Pulse master mark.
+  The "P" letterform + 4-point spark, in the 108x108dp viewport that
+  the Android adaptive-icon spec uses. The mark sits inside the inner
+  66x66dp safe zone (21..87 on both axes) so any OEM launcher mask
+  (circle / squircle / teardrop / rounded square) keeps it legible.
+  Foreground copy of this file is ic_launcher_foreground.xml; monochrome
+  (Android 13 themed icons) is ic_launcher_monochrome.xml.
+  Color refs: #7aa2f7 (Tokyo Night blue) for the P, #bb9af7 (Tokyo Night
+  purple) for the spark. Background gradient lives in
+  ic_launcher_background.xml. This file is also the input for the
+  raster PNGs in tools/render-icon-pngs.mjs.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
