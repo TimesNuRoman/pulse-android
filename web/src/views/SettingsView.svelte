@@ -3,7 +3,14 @@
   import { notesStore } from '$lib/notesStore';
   import { APP_VERSION, updateChecker } from '$lib/update-checker/update-checker';
   import { hapticImpact } from '$lib/capacitor';
-  import { hapticsEnabled, setHapticsEnabled, tap } from '$lib/haptics';
+  import {
+    hapticsEnabled,
+    setHapticsEnabled,
+    tap,
+    hapticImpact as r167HapticImpact,
+    hapticSelection,
+    hapticNotification,
+  } from '$lib/haptics';
   import SettingsSearch from '../components/SettingsSearch.svelte';
   import type { SettingEntry } from '$lib/settingsRegistry';
   import { onMount } from 'svelte';
@@ -103,6 +110,22 @@
     if (checked) void tap('light');
   }
 
+  // R167 — demo buttons inside the Accessibility section. Let the user
+  // feel the difference between light / medium / selection so the toggle
+  // isn't an abstract checkbox. Each handler is fire-and-forget.
+  function tapDemoLight(): void {
+    void r167HapticImpact('light');
+  }
+  function tapDemoMedium(): void {
+    void r167HapticImpact('medium');
+  }
+  function tapDemoSelection(): void {
+    void hapticSelection();
+  }
+  function tapDemoSuccess(): void {
+    void hapticNotification('success');
+  }
+
   const checkedAtLabel = $derived(
     lastCheckedAt ? new Date(lastCheckedAt).toLocaleString() : 'never',
   );
@@ -199,8 +222,43 @@
       />
     </label>
     <p class="settings-view__hint" data-testid="settings-haptics-note">
-      Tactile taps for saves, deletes, tab switches, and mic start/stop.
+      Tactile taps for saves, deletes, tab switches, and mic start/stop. Respects
+      <code>prefers-reduced-motion</code>.
     </p>
+    <div class="settings-view__demo" data-testid="settings-haptics-demo" aria-label="Haptic demo buttons">
+      <button
+        type="button"
+        class="btn btn--ghost settings-view__demo-btn"
+        onclick={tapDemoLight}
+        data-testid="settings-haptics-demo-light"
+      >
+        Light impact
+      </button>
+      <button
+        type="button"
+        class="btn btn--ghost settings-view__demo-btn"
+        onclick={tapDemoMedium}
+        data-testid="settings-haptics-demo-medium"
+      >
+        Medium impact
+      </button>
+      <button
+        type="button"
+        class="btn btn--ghost settings-view__demo-btn"
+        onclick={tapDemoSelection}
+        data-testid="settings-haptics-demo-selection"
+      >
+        Selection
+      </button>
+      <button
+        type="button"
+        class="btn btn--ghost settings-view__demo-btn"
+        onclick={tapDemoSuccess}
+        data-testid="settings-haptics-demo-success"
+      >
+        Success
+      </button>
+    </div>
   </section>
 
   <section
@@ -413,5 +471,16 @@
   .settings-view__search-btn svg {
     width: 20px;
     height: 20px;
+  }
+  .settings-view__demo {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .settings-view__demo-btn {
+    min-height: var(--tn-touch-min, 56px);
+    padding: 8px 12px;
+    font-size: 14px;
   }
 </style>

@@ -11,6 +11,7 @@ import {
 } from './notesArchive';
 import { sortNotes } from './notesSort';
 import { writeWidgetCache } from './widgetCache';
+import { hapticSelection } from './haptics';
 
 const STORAGE_KEY = 'pulse.notes.v1';
 
@@ -237,6 +238,10 @@ function createNotesStore() {
       };
       store.update((notes) => [note, ...notes]);
       scheduleWidgetCache();
+      // R167 — confirmation tick after successful create. Fire-and-forget;
+      // hapticSelection never throws and never awaits a plugin call site
+      // (it short-circuits in test environments where window is undefined).
+      void hapticSelection();
       return note;
     },
     update(id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'tags' | 'color'>>): void {
@@ -248,6 +253,8 @@ function createNotesStore() {
     delete(id: string): void {
       store.update((notes) => notes.filter((n) => n.id !== id));
       scheduleWidgetCache();
+      // R167 — confirmation tick after successful delete. Fire-and-forget.
+      void hapticSelection();
     },
     /**
      * R196 — set the color tag on a note. Returns the updated note, or
