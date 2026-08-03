@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  R173 - AppWidgetProvider info for the Notes home screen widget.
+  - Manual updates only: updatePeriodMillis=0. The web layer writes a
+    JSON cache and the widget reads it on onUpdate(). Forcing Android's
+    periodic refresh would waste battery and never see fresh data anyway
+    (the cache is on disk, not in the widget process).
+  - Resize range covers 2x2 to 4x2 cells.
+  - previewLayout is the layout Android shows in the widget picker.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="110dp"
+    android:updatePeriodMillis="0"
+    android:previewLayout="@layout/notes_widget"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:initialLayout="@layout/notes_widget" />

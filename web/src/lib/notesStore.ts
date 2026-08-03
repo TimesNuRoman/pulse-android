@@ -1,6 +1,7 @@
 import { writable, derived, get, type Writable } from 'svelte/store';
 import type { Note } from './notesBacklinks';
 import { extractTags, buildBacklinkIndex, countTags } from './notesBacklinks';
+import { writeWidgetCache } from './widgetCache';
 
 const STORAGE_KEY = 'pulse.notes.v1';
 
@@ -196,6 +197,18 @@ function createNotesStore() {
     saveToStorage(notes);
   });
 
+  // R173 — debounce widget cache writes. update() is called on every
+  // keystroke; we don't want to hit disk at the same rate. 800ms keeps
+  // the widget fresh enough after a typing burst without thrashing IO.
+  let widgetCacheTimer: ReturnType<typeof setTimeout> | null = null;
+  function scheduleWidgetCache(): void {
+    if (widgetCacheTimer) clearTimeout(widgetCacheTimer);
+    widgetCacheTimer = setTimeout(() => {
+      widgetCacheTimer = null;
+      void writeWidgetCache(get(store));
+    }, 800);
+  }
+
   return {
     subscribe: store.subscribe,
     list(): Note[] {
@@ -214,18 +227,30 @@ function createNotesStore() {
         updatedAt: Date.now(),
       };
       store.update((notes) => [note, ...notes]);
+      scheduleWidgetCache();
       return note;
     },
     update(id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'tags'>>): void {
       store.update((notes) =>
         notes.map((n) => (n.id === id ? { ...n, ...patch, updatedAt: Date.now() } : n)),
       );
+      scheduleWidgetCache();
     },
     delete(id: string): void {
       store.update((notes) => notes.filter((n) => n.id !== id));
+      scheduleWidgetCache();
     },
     resetToMocks(): void {
       store.set(MOCK_NOTES);
+      void writeWidgetCache(MOCK_NOTES);
+    },
+    /** R173 — flush pending widget cache write immediately (e.g. on app close). */
+    flushWidgetCache(): void {
+      if (widgetCacheTimer) {
+        clearTimeout(widgetCacheTimer);
+        widgetCacheTimer = null;
+      }
+      void writeWidgetCache(get(store));
     },
   };
 }

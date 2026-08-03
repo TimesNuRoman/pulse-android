@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  R173 - Notes widget layout.
+  Dark Tokyo Night palette (matches the in-app theme). Light-mode home
+  screens get the same dark surface - the design directive is "dark only,
+  even on light home screens" (R151).
+  Structure:
+    - Root: LinearLayout vertical, dark bg, rounded corners via insets
+    - Header row: "Pulse" wordmark (left) + refresh button (right)
+    - 3 note rows (TextView each): title (bold) + preview (1 line)
+  Tap targets:
+    - Root: opens the app (PULSE_MAIN pending intent).
+    - Each note row: deep link pulse://note/{id}.
+    - Refresh button: triggers AppWidgetManager.notifyAppWidgetViewDataChanged.
+  All interactive elements are >= 48dp (M3 + accessibility baseline).
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/notes_widget_bg"
+    android:padding="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="8dp">
+
+        <TextView
+            android:id="@+id/widget_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Pulse"
+            android:textColor="#c0caf5"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.04"
+            android:singleLine="true"
+            android:contentDescription="Pulse widget" />
+
+        <ImageButton
+            android:id="@+id/widget_refresh"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_popup_sync"
+            android:scaleType="centerInside"
+            android:tint="#7aa2f7"
+            android:contentDescription="Refresh notes" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/widget_note_1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
+        android:gravity="center_vertical"
+        android:textColor="#c0caf5"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:background="?android:attr/selectableItemBackground"
+        android:paddingHorizontal="8dp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/widget_note_2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
+        android:gravity="center_vertical"
+        android:textColor="#c0caf5"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:background="?android:attr/selectableItemBackground"
+        android:paddingHorizontal="8dp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/widget_note_3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
+        android:gravity="center_vertical"
+        android:textColor="#c0caf5"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:background="?android:attr/selectableItemBackground"
+        android:paddingHorizontal="8dp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/widget_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
+        android:gravity="center"
+        android:text="No notes yet"
+        android:textColor="#565f89"
+        android:textSize="12sp"
+        android:singleLine="true" />
+
+</LinearLayout>

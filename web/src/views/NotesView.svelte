@@ -15,8 +15,10 @@
 
   interface Props {
     onReplayOnboarding?: () => void;
+    pendingNoteId?: string | null;
+    onNoteOpened?: () => void;
   }
-  let { onReplayOnboarding }: Props = $props();
+  let { onReplayOnboarding, pendingNoteId = null, onNoteOpened }: Props = $props();
 
   let view: View = $state('list');
   let settingsOpen: boolean = $state(false);
@@ -63,7 +65,20 @@
     view = 'note';
     saveState = 'idle';
     void hapticImpact({ light: true });
+    onNoteOpened?.();
   }
+
+  // R173 — when App.svelte receives a deep link, it passes the note id in.
+  // Wait until the notes have loaded, then open it.
+  $effect(() => {
+    if (!pendingNoteId) return;
+    const list = $notesStore;
+    if (list.length === 0) return;
+    const exists = list.find((n) => n.id === pendingNoteId);
+    if (exists) {
+      openNote(pendingNoteId);
+    }
+  });
 
   function createNote(): void {
     const note = notesStore.create('# New note\n\nStart writing…');
