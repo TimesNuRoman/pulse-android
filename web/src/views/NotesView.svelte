@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import MarkdownEditor from '../components/notes/MarkdownEditor.svelte';
   import MarkdownPreview from '../components/notes/MarkdownPreview.svelte';
   import NoteToolbar, { type ToolbarAction } from '../components/notes/NoteToolbar.svelte';
@@ -9,6 +10,9 @@
   import { extractBacklinks, extractTags, type Note } from '../lib/notesBacklinks';
   import { share, copyToClipboard, hapticImpact } from '../lib/capacitor';
   import { tap } from '../lib/haptics';
+  import { checkForUpdate, type UpdateInfo } from '../lib/updateChecker';
+  import { APP_VERSION, APP_VERSION_CODE } from '../lib/version';
+  import UpdateBanner from '../components/UpdateBanner.svelte';
 
   type Mode = 'source' | 'preview' | 'split';
   type View = 'list' | 'note';
@@ -25,6 +29,18 @@
   let saveState: 'idle' | 'saving' | 'saved' = $state('idle');
   let titleInput: HTMLInputElement | undefined = $state();
   let showBacklinks: boolean = $state(false);
+
+  // R164 — in-app update check on mount. checkForUpdate() never throws;
+  // it resolves to null on any error. The banner self-hides when
+  // info.isUpdateAvailable is false (or when the version was dismissed
+  // by the user via the × button), so we always render the component
+  // and let it decide.
+  let updateInfo: UpdateInfo | null = $state(null);
+  onMount(() => {
+    void checkForUpdate(APP_VERSION, APP_VERSION_CODE).then((info) => {
+      updateInfo = info;
+    });
+  });
 
   // Tag autocomplete state
   let tagPopupOpen: boolean = $state(false);
@@ -187,6 +203,9 @@
 </script>
 
 <main class="notes-view" data-testid="notes-view" data-view={view}>
+  {#if updateInfo}
+    <UpdateBanner info={updateInfo} currentVersion={APP_VERSION} />
+  {/if}
   {#if settingsOpen}
     <SettingsView onBack={closeSettings} onReplayOnboarding={replayOnboarding} />
   {:else if view === 'list'}
