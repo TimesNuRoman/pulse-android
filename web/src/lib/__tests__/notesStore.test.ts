@@ -77,6 +77,32 @@ describe('notesStore', () => {
     notesStore.resetToMocks();
     expect(notesStore.list().length).toBe(8);
   });
+
+  it('replaceAll() swaps the entire set and preserves given ids', () => {
+    const incoming = [
+      {
+        id: 'imported-1',
+        title: 'From backup A',
+        content: 'A body',
+        createdAt: 1000,
+        updatedAt: 2000,
+      },
+      {
+        id: 'imported-2',
+        title: 'From backup B',
+        content: 'B body',
+        createdAt: 1100,
+        updatedAt: 2100,
+      },
+    ];
+    notesStore.replaceAll(incoming);
+    const list = notesStore.list();
+    expect(list.length).toBe(2);
+    expect(list[0].id).toBe('imported-1');
+    expect(list[0].createdAt).toBe(1000);
+    expect(list[0].updatedAt).toBe(2000);
+    expect(notesStore.get('imported-2')?.title).toBe('From backup B');
+  });
 });
 
 describe('derived stores', () => {
