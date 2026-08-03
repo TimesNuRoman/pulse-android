@@ -5,13 +5,23 @@
   import TagAutocomplete from '../components/notes/TagAutocomplete.svelte';
   import SplitPane from '../components/notes/SplitPane.svelte';
   import SettingsView from './SettingsView.svelte';
-  import { notesStore, sortedNotes, allTags, backlinkIndex } from '../lib/notesStore';
-  import { extractBacklinks, extractTags, type Note } from '../lib/notesBacklinks';
+  import {
+    notesStore,
+    activeSortedNotes,
+    archivedSortedNotes,
+    allTags,
+    backlinkIndex,
+  } from '../lib/notesStore';
+  import {
+    extractBacklinks,
+    extractTags,
+    type Note,
+  } from '../lib/notesBacklinks';
   import { share, copyToClipboard, hapticImpact } from '../lib/capacitor';
   import { tap } from '../lib/haptics';
 
   type Mode = 'source' | 'preview' | 'split';
-  type View = 'list' | 'note';
+  type View = 'list' | 'note' | 'archive';
 
   interface Props {
     onReplayOnboarding?: () => void;
@@ -30,6 +40,9 @@
   let tagPopupOpen: boolean = $state(false);
   let tagQuery: string = $state('');
   let tagAnchor: 'top' | 'bottom' = $state('top');
+
+  // Archive state
+  let archiveConfirm: 'none' | 'empty' | { id: string } = $state('none');
 
   function openSettings(): void {
     // R118 — tab switch (Settings/Notes) is a `selection` tick.
@@ -50,7 +63,8 @@
   const activeNote: Note | undefined = $derived(
     activeNoteId ? $notesStore.find((n) => n.id === activeNoteId) : undefined,
   );
-  const notes = $derived($sortedNotes);
+  const notes = $derived($activeSortedNotes);
+  const archivedNotes = $derived($archivedSortedNotes);
   const tags = $derived($allTags);
   const backlinksTo = $derived.by((): Note[] => {
     if (!activeNote) return [];
@@ -79,6 +93,54 @@
     notesStore.delete(activeNoteId);
     activeNoteId = null;
     view = 'list';
+  }
+
+  // R202 — archive the active note (reversible delete). Sends the user back
+  // to the list. Archived notes are hidden from `notes` (driven by
+  // `activeSortedNotes`) so re-opening the same id would 404. That's
+  // intentional: archive + view = different mode.
+  function archiveCurrentNote(): void {
+    if (!activeNoteId) return;
+    void tap('selection');
+    notesStore.archiveNote(activeNoteId);
+    activeNoteId = null;
+    view = 'list';
+  }
+
+  // R202 — open the archive view. `selection` haptic matches the open
+  // settings tab. The archive view reuses the list layout.
+  function openArchive(): void {
+    void tap('selection');
+    activeNoteId = null;
+    view = 'archive';
+  }
+
+  // R202 — restore a note from the archive. `selection` haptic.
+  function restoreNoteById(id: string): void {
+    void tap('selection');
+    notesStore.restoreNote(id);
+  }
+
+  // R202 — permanent delete of a single archived note. `medium` haptic,
+  // matches the hard-delete action feel.
+  function deleteArchivedNote(id: string): void {
+    void tap('medium');
+    notesStore.delete(id);
+  }
+
+  // R202 — empty the entire archive (permanent, no undo). The
+  // `archiveConfirm` state gates this behind an explicit confirmation
+  // tap so a single misclick can't wipe the archive.
+  function confirmEmptyArchive(): void {
+    archiveConfirm = 'empty';
+  }
+  function cancelEmptyArchive(): void {
+    archiveConfirm = 'none';
+  }
+  function doEmptyArchive(): void {
+    void tap('medium');
+    notesStore.emptyArchive();
+    archiveConfirm = 'none';
   }
 
   // R118 — debounce save haptics so the user feels one `light` tap per
@@ -197,6 +259,21 @@
       </button>
       <button
         type="button"
+        class="btn btn--ghost notes-view__archive-toggle"
+        onclick={openArchive}
+        data-testid="view-archive"
+        aria-label="View archived notes"
+        title="Archive"
+      >
+        Archive
+        {#if archivedNotes.length > 0}
+          <span class="notes-view__badge" data-testid="archive-badge">
+            {archivedNotes.length}
+          </span>
+        {/if}
+      </button>
+      <button
+        type="button"
         class="btn btn--ghost notes-view__gear"
         onclick={openSettings}
         data-testid="open-settings"
@@ -305,6 +382,15 @@
       </button>
       <button
         type="button"
+        class="btn btn--ghost"
+        onclick={archiveCurrentNote}
+        aria-label="Archive note"
+        data-testid="archive-btn"
+      >
+        Archive
+      </button>
+      <button
+        type="button"
         class="btn btn--danger"
         onclick={deleteCurrentNote}
         aria-label="Delete note"
@@ -405,6 +491,106 @@
           </ul>
         {/if}
       </aside>
+    {/if}
+  {:else if view === 'archive'}
+    <header class="notes-view__header">
+      <button
+        type="button"
+        class="btn btn--ghost"
+        onclick={() => (view = 'list')}
+        data-testid="archive-back"
+        aria-label="Back to notes list"
+      >
+        Back
+      </button>
+      <h1 class="notes-view__title">Archive</h1>
+      <button
+        type="button"
+        class="btn btn--danger notes-view__empty-archive"
+        onclick={confirmEmptyArchive}
+        aria-label="Empty archive permanently"
+        data-testid="empty-archive-btn"
+        disabled={archivedNotes.length === 0}
+      >
+        Empty archive
+      </button>
+    </header>
+
+    {#if archiveConfirm === 'empty'}
+      <div
+        class="notes-view__confirm"
+        role="alertdialog"
+        aria-labelledby="empty-archive-title"
+        aria-describedby="empty-archive-desc"
+        data-testid="empty-archive-confirm"
+      >
+        <p id="empty-archive-title" class="notes-view__confirm-title">
+          Empty archive permanently?
+        </p>
+        <p id="empty-archive-desc" class="notes-view__confirm-desc">
+          {archivedNotes.length} note{archivedNotes.length === 1 ? '' : 's'} will be deleted. This cannot be undone.
+        </p>
+        <div class="notes-view__confirm-actions">
+          <button
+            type="button"
+            class="btn btn--ghost"
+            onclick={cancelEmptyArchive}
+            data-testid="empty-archive-cancel"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="btn btn--danger"
+            onclick={doEmptyArchive}
+            data-testid="empty-archive-confirm-btn"
+          >
+            Delete all
+          </button>
+        </div>
+      </div>
+    {/if}
+
+    {#if archivedNotes.length === 0}
+      <p class="notes-view__empty" data-testid="archive-empty">
+        No archived notes. Archived notes appear here.
+      </p>
+    {:else}
+      <ul class="notes-view__list" data-testid="archive-list">
+        {#each archivedNotes as n (n.id)}
+          <li class="notes-view__archive-item">
+            <div class="notes-view__archive-meta">
+              <h2 class="notes-card__title notes-view__archive-title">{n.title || 'Untitled'}</h2>
+              <p class="notes-card__preview">
+                {n.content.slice(0, 120).replace(/\n/g, ' ')}
+              </p>
+              <span class="notes-view__archive-date">
+                Archived {n.archivedAt ? new Date(n.archivedAt).toLocaleDateString() : ''}
+              </span>
+            </div>
+            <div class="notes-view__archive-actions">
+              <button
+                type="button"
+                class="btn btn--primary"
+                onclick={() => restoreNoteById(n.id)}
+                aria-label={`Restore note ${n.title}`}
+                data-testid={`restore-${n.id}`}
+              >
+                Restore
+              </button>
+              <button
+                type="button"
+                class="btn btn--danger"
+                onclick={() => deleteArchivedNote(n.id)}
+                aria-label={`Delete permanently ${n.title}`}
+                data-testid={`delete-archived-${n.id}`}
+              >
+                Delete
+              </button>
+            </div>
+          </li>
+        {/each}
+      </ul>
     {/if}
   {/if}
 </main>
@@ -660,5 +846,93 @@
   }
   .btn--danger:hover {
     background: rgba(247, 118, 142, 0.1);
+  }
+  .btn[disabled] {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* R202 — archive view */
+  .notes-view__archive-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .notes-view__badge {
+    background: var(--tn-accent-purple, #bb9af7);
+    color: var(--tn-bg, #1a1b26);
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    min-width: 20px;
+    text-align: center;
+  }
+  .notes-view__archive-item {
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+    background: var(--tn-bg-elevated, #24283b);
+    border: 1px solid var(--tn-border, #414868);
+    border-radius: var(--tn-radius-md, 12px);
+    padding: 12px;
+    opacity: 0.85;
+  }
+  .notes-view__archive-item .notes-card__title {
+    color: var(--tn-fg-dim, #9aa5ce);
+    text-decoration: line-through;
+  }
+  .notes-view__archive-meta {
+    flex: 1;
+    min-width: 0;
+  }
+  .notes-view__archive-title {
+    margin: 0 0 6px;
+    font-size: 16px;
+  }
+  .notes-view__archive-date {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--tn-fg-muted, #565f89);
+  }
+  .notes-view__archive-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 0 0 auto;
+    justify-content: center;
+  }
+  .notes-view__empty-archive {
+    margin-left: auto;
+  }
+  .notes-view__confirm {
+    margin: 16px;
+    padding: 16px;
+    background: var(--tn-bg-elevated, #24283b);
+    border: 1px solid var(--tn-accent-red, #f7768e);
+    border-radius: var(--tn-radius-md, 12px);
+  }
+  .notes-view__confirm-title {
+    margin: 0 0 6px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--tn-accent-red, #f7768e);
+  }
+  .notes-view__confirm-desc {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: var(--tn-fg-dim, #9aa5ce);
+  }
+  .notes-view__confirm-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .notes-view__archive-item,
+    .notes-card {
+      transition: none;
+    }
   }
 </style>
