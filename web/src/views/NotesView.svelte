@@ -4,6 +4,7 @@
   import NoteToolbar, { type ToolbarAction } from '../components/notes/NoteToolbar.svelte';
   import TagAutocomplete from '../components/notes/TagAutocomplete.svelte';
   import SplitPane from '../components/notes/SplitPane.svelte';
+  import NotesSearch from '../components/NotesSearch.svelte';
   import SettingsView from './SettingsView.svelte';
   import {
     notesStore,
@@ -22,6 +23,7 @@
     getNoteColorHex,
     type NoteColor,
   } from '../lib/noteColors';
+  import { searchNotes } from '../lib/notesSearch';
   import { share, copyToClipboard, hapticImpact } from '../lib/capacitor';
   import { tap } from '../lib/haptics';
 
@@ -40,6 +42,7 @@
   let saveState: 'idle' | 'saving' | 'saved' = $state('idle');
   let titleInput: HTMLInputElement | undefined = $state();
   let showBacklinks: boolean = $state(false);
+  let searchQuery: string = $state('');
 
   // Tag autocomplete state
   let tagPopupOpen: boolean = $state(false);
@@ -68,7 +71,6 @@
   const activeNote: Note | undefined = $derived(
     activeNoteId ? $notesStore.find((n) => n.id === activeNoteId) : undefined,
   );
-  const notes = $derived($activeSortedNotes);
   const archivedNotes = $derived($archivedSortedNotes);
   const tags = $derived($allTags);
   const backlinksTo = $derived.by((): Note[] => {
@@ -78,6 +80,27 @@
   const noteTags = $derived(activeNote ? extractTags(activeNote.content) : []);
   const colors = $derived(getAllNoteColors());
   const activeColor = $derived(activeNote?.color ?? 'none');
+
+  // R193 — notes full-text search. Empty query → upstream `$activeSortedNotes`
+  // (preserves R202 archive filter + R187 sort). Non-empty → 6-level scored + tiebroken result.
+  const visibleNotes = $derived(
+    searchQuery.trim() ? searchNotes($activeSortedNotes, searchQuery) : $activeSortedNotes,
+  );
+  const notes = $derived(visibleNotes);
+  const searchResultCount = $derived(notes.length);
+
+  // R193 — fire a `selection` haptic on empty ↔ non-empty filter transitions
+  // (start a search, clear a search). Mid-typing transitions stay quiet.
+  let prevSearchQuery = '';
+  $effect(() => {
+    const q = searchQuery;
+    const wasEmpty = prevSearchQuery === '';
+    const isEmpty = q === '';
+    prevSearchQuery = q;
+    if (wasEmpty !== isEmpty) {
+      void tap('selection');
+    }
+  });
 
   function openNote(id: string): void {
     activeNoteId = id;
@@ -318,6 +341,11 @@
         <span class="sr-only">Settings</span>
       </button>
     </header>
+    <NotesSearch
+      bind:query={searchQuery}
+      filteredCount={searchResultCount}
+      totalCount={$activeSortedNotes.length}
+    />
     <ul class="notes-view__list" data-testid="notes-list">
       {#each notes as n (n.id)}
         <li>
