@@ -1,6 +1,10 @@
 import { writable, derived, get, type Writable } from 'svelte/store';
 import type { Note } from './notesBacklinks';
 import { extractTags, buildBacklinkIndex, countTags } from './notesBacklinks';
+// R167 — fire a `selection` tick after a successful create/delete so the
+// user feels confirmation. The helper internally checks isHapticsEnabled()
+// + prefers-reduced-motion, so this call is safe to add unconditionally.
+import { hapticSelection } from './haptics';
 
 const STORAGE_KEY = 'pulse.notes.v1';
 
@@ -214,6 +218,10 @@ function createNotesStore() {
         updatedAt: Date.now(),
       };
       store.update((notes) => [note, ...notes]);
+      // R167 — confirmation tick after successful create. Fire-and-forget;
+      // hapticSelection never throws and never awaits a plugin call site
+      // (it short-circuits in test environments where window is undefined).
+      void hapticSelection();
       return note;
     },
     update(id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'tags'>>): void {
@@ -223,6 +231,8 @@ function createNotesStore() {
     },
     delete(id: string): void {
       store.update((notes) => notes.filter((n) => n.id !== id));
+      // R167 — confirmation tick after successful delete.
+      void hapticSelection();
     },
     resetToMocks(): void {
       store.set(MOCK_NOTES);
