@@ -204,12 +204,12 @@
   </section>
 
   <section
-    id="settings-section-feedback"
+    id="settings-section-accessibility"
     class="settings-view__section"
-    data-testid="settings-section-feedback"
-    aria-labelledby="settings-feedback-h"
+    data-testid="settings-section-accessibility"
+    aria-labelledby="settings-accessibility-h"
   >
-    <h2 class="settings-view__section-title" id="settings-feedback-h">Feedback</h2>
+    <h2 class="settings-view__section-title" id="settings-accessibility-h">Accessibility</h2>
     <label class="settings-view__toggle">
       <span class="settings-view__label">Haptics</span>
       <input

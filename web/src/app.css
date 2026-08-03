@@ -178,6 +178,16 @@ button:focus-visible {
   text-decoration: none;
   font-size: 0.9em;
 }
+.md-preview .autolink {
+  color: var(--tn-accent-blue);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.md-preview .autolink:hover {
+  text-decoration: none;
+  background: rgba(122, 162, 247, 0.12);
+  border-radius: 2px;
+}
 
 /* Collapsible code blocks (R181) — wrap long <pre><code> in <details class="fold">. */
 .md-preview .fold {

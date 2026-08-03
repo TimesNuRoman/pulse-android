@@ -18,6 +18,12 @@ import { applyCodeBlockFold } from './markdownFold';
 /** Code blocks with more than this many visible lines are wrapped in <details>. */
 const CODE_FOLD_THRESHOLD = 5;
 
+/**
+ * Whitelisted URL schemes for autolinks. Anything else (javascript:, data:,
+ * vbscript:, file:, etc.) is rendered as plain text.
+ */
+const SAFE_URL_SCHEMES = new Set(['http:', 'https:', 'mailto:']);
+
 let md: MarkdownIt | null = null;
 
 /**
@@ -203,6 +209,12 @@ function escapeAttr(s: string): string {
  * raw <script> tags from going through. Custom plugin HTML is built by us
  * with proper escaping, so XSS via wikilink/tag is mitigated.
  *
+ * R158: autolink pass — upgrades linkify-generated anchors with class
+ * "autolink", target="_blank", rel="noopener noreferrer". Pre-existing
+ * class-bearing anchors (wikilink, tag) are left untouched. Bare URLs
+ * / <URL> / email are already detected by markdown-it linkify; this
+ * pass adds the missing attributes and the scheme whitelist check.
+ *
  * R159: footnotes pass — extracts `[^id]: text` defs before render, then
  * substitutes `[^id]` in the body with `<sup>` links and appends a
  * `<section class="footnotes">` at the bottom. Definitions in fenced code
@@ -214,8 +226,9 @@ export function renderMarkdown(source: string): string {
   const { source: cleaned, defs } = extractFootnoteDefs(src);
   const html = getMarkdownIt().render(cleaned);
   const folded = applyCodeBlockFold(html, { threshold: CODE_FOLD_THRESHOLD });
-  if (defs.length === 0) return folded;
-  return renderFootnoteBody(folded, defs);
+  const withAutolink = autolink(folded);
+  if (defs.length === 0) return withAutolink;
+  return renderFootnoteBody(withAutolink, defs);
 }
 
 interface FootnoteDef {
@@ -370,6 +383,33 @@ function renderFootnoteBody(html: string, defs: FootnoteDef[]): string {
 
 function isNumericId(id: string): boolean {
   return /^\d+$/.test(id);
+}
+
+/**
+ * Post-render autolink pass (R158). Matches the full <a ...>...</a> block
+ * emitted by markdown-it linkify, then:
+ *   - skips anchors that already carry a class (wikilink, tag)
+ *   - validates the URL scheme against a whitelist
+ *   - if unsafe, returns the inner text only (drops the anchor entirely)
+ *   - if safe, rewrites the opening tag to add class + target + rel
+ *
+ * The body text is left untouched: linkify/markdown-it already escaped any
+ * HTML metacharacters in the source, so XSS via URL text is mitigated.
+ */
+function autolink(html: string): string {
+  return html.replace(/<a\s+href="([^"]*)"([^>]*)>([\s\S]*?)<\/a>/g, (_match, href: string, rest: string, body: string) => {
+    if (/\bclass="[^"]*"/.test(rest)) return _match;
+
+    const schemeMatch = href.match(/^([a-zA-Z][a-zA-Z0-9+.\-]*):/);
+    const scheme = schemeMatch ? schemeMatch[1].toLowerCase() + ':' : '';
+    if (scheme && !SAFE_URL_SCHEMES.has(scheme)) {
+      // Strip the anchor; keep the visible text. Linkify usually filters
+      // javascript:/data: before they ever reach here, but defense in depth.
+      return body;
+    }
+
+    return `<a class="autolink" href="${href}" target="_blank" rel="noopener noreferrer">${body}</a>`;
+  });
 }
 
 /**
