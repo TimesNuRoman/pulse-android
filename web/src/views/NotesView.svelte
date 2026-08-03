@@ -407,6 +407,24 @@
     notesStore.setColor(activeNote.id, next);
     void tap('selection');
   }
+
+  // R136 — wikilink click handler. If the target note exists, switch to
+  // it. If not, create a stub note (body "Created from [[source title]]")
+  // and switch to that. The NotesView owns navigation; the preview just
+  // emits a (target, exists) pair via the Svelte action.
+  function onWikilinkClick(target: string, exists: boolean): void {
+    void tap('selection');
+    if (exists) {
+      const found = notesStore.list().find((n) => n.title === target);
+      if (found) {
+        openNote(found.id);
+      }
+      return;
+    }
+    if (!activeNoteId) return;
+    const stub = notesStore.createStubNote(target, activeNoteId);
+    openNote(stub.id);
+  }
 </script>
 
 <main class="notes-view" data-testid="notes-view" data-view={view}>
@@ -759,7 +777,11 @@
               />
             </div>
             <div class="notes-view__pane">
-              <MarkdownPreview source={activeNote.content} />
+              <MarkdownPreview
+                source={activeNote.content}
+                notes={notes}
+                onWikilinkClick={onWikilinkClick}
+              />
             </div>
           {/snippet}
         </SplitPane>
@@ -771,7 +793,11 @@
           placeholder="Start writing…"
         />
       {:else}
-        <MarkdownPreview source={activeNote.content} />
+        <MarkdownPreview
+          source={activeNote.content}
+          notes={notes}
+          onWikilinkClick={onWikilinkClick}
+        />
       {/if}
     </div>
 

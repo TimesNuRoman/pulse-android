@@ -37,6 +37,32 @@
         import('@codemirror/lang-markdown'),
         import('@codemirror/theme-one-dark'),
       ]);
+      // R136 — [[wikilink]] inline highlight. We use a MatchDecorator so
+      // the decoration tracks doc changes / viewport changes. The class
+      // name `cm-wikilink-highlight` is styled in the <style> block below.
+      const { Decoration, MatchDecorator, ViewPlugin } = await import('@codemirror/view');
+      type Decoration = import('@codemirror/view').Decoration;
+      type MatchDecorator = import('@codemirror/view').MatchDecorator;
+      type ViewPlugin = typeof import('@codemirror/view').ViewPlugin;
+      const WIKILINK_RE = /\[\[[^\[\]\n]+?\]\]/g;
+      const wikilinkMatcher: MatchDecorator = new MatchDecorator({
+        regexp: WIKILINK_RE,
+        decoration: () => Decoration.mark({ class: 'cm-wikilink-highlight' }),
+      });
+      const wikilinkHighlightPlugin = ViewPlugin.fromClass(
+        class {
+          decorations: ReturnType<typeof wikilinkMatcher.createDeco>;
+          constructor(view: EditorView) {
+            this.decorations = wikilinkMatcher.createDeco(view);
+          }
+          update(update: { docChanged: boolean; viewportChanged: boolean; view: EditorView }) {
+            if (update.docChanged || update.viewportChanged) {
+              this.decorations = wikilinkMatcher.createDeco(update.view);
+            }
+          }
+        },
+        { decorations: (v) => v.decorations },
+      );
 
       const touchTheme = EditorView.theme({
         '&': { fontSize: '16px' },
@@ -65,6 +91,7 @@
           markdown(),
           oneDark,
           touchTheme,
+          wikilinkHighlightPlugin,
           EditorView.lineWrapping,
           EditorView.updateListener.of((u: { docChanged: boolean; state: { doc: { toString: () => string } } }) => {
             if (u.docChanged) {
@@ -174,6 +201,15 @@
     justify-content: center;
     color: var(--tn-fg-muted, #565f89);
     font-size: var(--tn-font-small, 13px);
+  }
+  /* R136 — subtle wikilink highlight in Edit mode. Tokyo Night blue at
+     0.1 opacity, matches the preview's existing-wikilink tone but quieter
+     because the user is mid-type, not browsing. Not clickable: clicking
+     inside the editor keeps caret behavior intact. */
+  :global(.cm-wikilink-highlight) {
+    background: rgba(122, 162, 247, 0.1);
+    border-radius: 3px;
+    padding: 0 1px;
   }
   @media (max-width: 767px) {
     .md-editor[data-mode='split'] { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
