@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * Notes backlinks & tags — pure functions, no store dependency.
  *
@@ -6,6 +7,10 @@
  * from file" feature can re-use them.
  */
 
+import type { NoteColor } from './noteColors';
+
+export type { NoteColor };
+
 export interface Note {
   id: string;
   title: string;
@@ -13,6 +18,12 @@ export interface Note {
   createdAt: number;
   updatedAt: number;
   tags?: string[];
+  /**
+   * Visual category tag (R196). Stored as the stable id, never the HEX.
+   * The HEX is looked up via `getNoteColorHex` so we can re-skin the palette
+   * in one place without migrating user data.
+   */
+  color?: NoteColor | null;
 }
 
 const WIKILINK_RE = /\[\[([^\[\]\n]+?)\]\]/g;
