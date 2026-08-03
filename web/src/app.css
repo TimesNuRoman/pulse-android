@@ -195,3 +195,84 @@ button:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* R185 — per-note export popover + toast.
+   Lives in app.css (not scoped) because the trigger and the popover
+   are positioned via the same `.notes-view__export-wrap` container, and
+   the toast is a fixed-positioned overlay rendered as a sibling of
+   `.notes-view` — Svelte scoped CSS would strip the rule from the
+   toast. All colors and radii come from the existing Tokyo Night vars.
+   56dp min-height on the trigger (per brief HR11 / a11y), 48dp on
+   popover items, focus-visible already provided by the global rule
+   above, prefers-reduced-motion respected. */
+.notes-view__export-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.notes-view__export-wrap > .btn {
+  min-height: 56px; /* brief HR11 — Export button a11y floor */
+}
+.notes-view__export-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: var(--tn-bg-elevated);
+  border: 1px solid var(--tn-border);
+  border-radius: var(--tn-radius-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  animation: notes-view__export-menu-in 120ms ease-out;
+}
+@keyframes notes-view__export-menu-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.notes-view__export-item {
+  min-height: 48px; /* brief HR11 — popover item touch floor */
+  min-width: var(--tn-touch-pref, 48px);
+  padding: 0 14px;
+  text-align: left;
+  font-size: 14px;
+  color: var(--tn-fg);
+  background: transparent;
+  border: 0;
+  border-radius: var(--tn-radius-sm);
+  cursor: pointer;
+  font-family: var(--tn-font-mono);
+}
+.notes-view__export-item:hover,
+.notes-view__export-item:focus-visible {
+  background: var(--tn-bg-overlay);
+  color: var(--tn-fg);
+}
+.notes-view__export-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: calc(100vw - 32px);
+  padding: 10px 16px;
+  background: var(--tn-bg-elevated);
+  color: var(--tn-fg);
+  border: 1px solid var(--tn-border);
+  border-radius: var(--tn-radius-md);
+  font-size: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  animation: notes-view__export-toast-in 160ms ease-out;
+}
+@keyframes notes-view__export-toast-in {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .notes-view__export-menu,
+  .notes-view__export-toast {
+    animation: none;
+  }
+}

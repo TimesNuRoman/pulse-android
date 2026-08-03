@@ -9,9 +9,12 @@
   import { extractBacklinks, extractTags, type Note } from '../lib/notesBacklinks';
   import { share, copyToClipboard, hapticImpact } from '../lib/capacitor';
   import { tap } from '../lib/haptics';
+  import { saveNoteFile } from '../lib/noteExportFileSystem';
+  import type { ExportFormat } from '../lib/noteExport';
 
   type Mode = 'source' | 'preview' | 'split';
   type View = 'list' | 'note';
+  type ExportMenuFormat = ExportFormat;
 
   interface Props {
     onReplayOnboarding?: () => void;
@@ -25,6 +28,12 @@
   let saveState: 'idle' | 'saving' | 'saved' = $state('idle');
   let titleInput: HTMLInputElement | undefined = $state();
   let showBacklinks: boolean = $state(false);
+
+  // R185 — per-note export menu state + ephemeral toast.
+  let exportMenuOpen: boolean = $state(false);
+  let exportMenuRoot: HTMLDivElement | undefined = $state();
+  let exportToast: string = $state('');
+  let exportToastTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Tag autocomplete state
   let tagPopupOpen: boolean = $state(false);
@@ -157,6 +166,55 @@
   async function copyCurrent(): Promise<void> {
     if (!activeNote) return;
     await copyToClipboard(`${activeNote.title}\n\n${activeNote.content}`);
+  }
+
+  // R185 — open / dismiss the per-note export popover.
+  function toggleExportMenu(): void {
+    void tap('selection');
+    exportMenuOpen = !exportMenuOpen;
+  }
+
+  // R185 — close the popover on outside click or Escape. The handler
+  // is attached while the menu is open and torn down on close.
+  $effect(() => {
+    if (!exportMenuOpen || typeof window === 'undefined') return;
+    const onPointer = (e: MouseEvent): void => {
+      const root = exportMenuRoot;
+      if (!root) return;
+      if (e.target instanceof Node && root.contains(e.target)) return;
+      exportMenuOpen = false;
+    };
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') exportMenuOpen = false;
+    };
+    window.addEventListener('mousedown', onPointer);
+    window.addEventListener('keydown', onKey);
+    return (): void => {
+      window.removeEventListener('mousedown', onPointer);
+      window.removeEventListener('keydown', onKey);
+    };
+  });
+
+  function showExportToast(message: string): void {
+    exportToast = message;
+    if (exportToastTimer) clearTimeout(exportToastTimer);
+    exportToastTimer = setTimeout(() => {
+      exportToast = '';
+      exportToastTimer = null;
+    }, 2400);
+  }
+
+  async function exportCurrentNote(format: ExportMenuFormat): Promise<void> {
+    if (!activeNote) return;
+    exportMenuOpen = false;
+    void tap('light');
+    const result = await saveNoteFile(activeNote, format);
+    if (result.transport === 'noop') {
+      showExportToast('Could not save — no transport available');
+      return;
+    }
+    const verb = result.transport === 'native-share' ? 'Shared' : 'Saved';
+    showExportToast(`${verb} as ${result.filename}`);
   }
 
   function onTagInput(e: Event): void {
@@ -303,6 +361,48 @@
       >
         Copy
       </button>
+      <div class="notes-view__export-wrap" bind:this={exportMenuRoot}>
+        <button
+          type="button"
+          class="btn btn--ghost"
+          onclick={toggleExportMenu}
+          aria-label="Export note"
+          aria-haspopup="menu"
+          aria-expanded={exportMenuOpen}
+          data-testid="export-btn"
+        >
+          Export
+        </button>
+        {#if exportMenuOpen}
+          <div
+            class="notes-view__export-menu"
+            role="menu"
+            aria-label="Export note as"
+            data-testid="export-menu"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              class="notes-view__export-item"
+              onclick={() => exportCurrentNote('md')}
+              aria-label="Export note as Markdown"
+              data-testid="export-md"
+            >
+              Markdown (.md)
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              class="notes-view__export-item"
+              onclick={() => exportCurrentNote('json')}
+              aria-label="Export note as JSON"
+              data-testid="export-json"
+            >
+              JSON (.json)
+            </button>
+          </div>
+        {/if}
+      </div>
       <button
         type="button"
         class="btn btn--danger"
@@ -405,6 +505,17 @@
           </ul>
         {/if}
       </aside>
+    {/if}
+
+    {#if exportToast}
+      <div
+        class="notes-view__export-toast"
+        role="status"
+        aria-live="polite"
+        data-testid="export-toast"
+      >
+        {exportToast}
+      </div>
     {/if}
   {/if}
 </main>
