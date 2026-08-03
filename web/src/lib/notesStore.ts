@@ -1,6 +1,7 @@
 import { writable, derived, get, type Writable } from 'svelte/store';
-import type { Note } from './notesBacklinks';
+import type { Note, NoteColor } from './notesBacklinks';
 import { extractTags, buildBacklinkIndex, countTags } from './notesBacklinks';
+import { isValidNoteColor } from './noteColors';
 import {
   archiveNote as archiveNotePure,
   restoreNote as restoreNotePure,
@@ -223,13 +224,48 @@ function createNotesStore() {
       store.update((notes) => [note, ...notes]);
       return note;
     },
-    update(id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'tags'>>): void {
+    update(id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'tags' | 'color'>>): void {
       store.update((notes) =>
         notes.map((n) => (n.id === id ? { ...n, ...patch, updatedAt: Date.now() } : n)),
       );
     },
     delete(id: string): void {
       store.update((notes) => notes.filter((n) => n.id !== id));
+    },
+    /**
+     * R196 — set the color tag on a note. Returns the updated note, or
+     * undefined if no note with that id exists. Invalid color ids are
+     * rejected as no-ops (defensive — localStorage is user editable, so
+     * corrupt values must not crash the store). `null` explicitly clears
+     * the color.
+     */
+    setColor(noteId: string, color: NoteColor | null): Note | undefined {
+      // Reject invalid input early. We do NOT fall back to 'none' on
+      // bad input — the caller is responsible for `null` to mean
+      // "clear the color".
+      if (color !== null && !isValidNoteColor(color)) return undefined;
+      const nextColor: NoteColor | null = color === 'none' ? null : color;
+      let updated: Note | undefined;
+      store.update((notes) =>
+        notes.map((n) => {
+          if (n.id !== noteId) return n;
+          updated = { ...n, color: nextColor, updatedAt: Date.now() };
+          return updated;
+        }),
+      );
+      return updated;
+    },
+    /**
+     * R196 — selector. Returns every note whose color matches the given
+     * id. 'none' returns notes with no color (color === null/undefined).
+     */
+    getNotesByColor(color: NoteColor): Note[] {
+      const target = color === 'none' ? null : color;
+      return get(store).filter((n) => {
+        const noteColor = n.color ?? null;
+        if (target === null) return noteColor === null;
+        return noteColor === target;
+      });
     },
     resetToMocks(): void {
       store.set(MOCK_NOTES);

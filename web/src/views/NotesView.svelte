@@ -17,6 +17,11 @@
     extractTags,
     type Note,
   } from '../lib/notesBacklinks';
+  import {
+    getAllNoteColors,
+    getNoteColorHex,
+    type NoteColor,
+  } from '../lib/noteColors';
   import { share, copyToClipboard, hapticImpact } from '../lib/capacitor';
   import { tap } from '../lib/haptics';
 
@@ -71,6 +76,8 @@
     return $backlinkIndex.get(activeNote.title.toLowerCase()) ?? [];
   });
   const noteTags = $derived(activeNote ? extractTags(activeNote.content) : []);
+  const colors = $derived(getAllNoteColors());
+  const activeColor = $derived(activeNote?.color ?? 'none');
 
   function openNote(id: string): void {
     activeNoteId = id;
@@ -246,6 +253,17 @@
     notesStore.update(activeNote.id, { content: next });
     tagPopupOpen = false;
   }
+
+  // R196 — color tag picker. Tapping the current color removes it
+  // (toggles to 'none'). Tapping 'none' is a no-op if the note has no
+  // color. Selection haptic on every successful change.
+  function onPickColor(color: NoteColor): void {
+    if (!activeNote) return;
+    const current = activeNote.color ?? 'none';
+    const next: NoteColor = current === color ? 'none' : color;
+    notesStore.setColor(activeNote.id, next);
+    void tap('selection');
+  }
 </script>
 
 <main class="notes-view" data-testid="notes-view" data-view={view}>
@@ -306,8 +324,11 @@
           <button
             type="button"
             class="notes-card"
+            class:notes-card--has-color={n.color}
+            style:border-left-color={n.color ? (getNoteColorHex(n.color) ?? 'transparent') : 'transparent'}
             onclick={() => openNote(n.id)}
             data-testid={`note-card-${n.id}`}
+            data-color={n.color ?? 'none'}
             aria-label={`Open note ${n.title}`}
           >
             <h2 class="notes-card__title">{n.title || 'Untitled'}</h2>
@@ -344,6 +365,43 @@
         aria-label="Note title"
         data-testid="title-input"
       />
+      <div
+        class="notes-view__color-picker"
+        role="radiogroup"
+        aria-label="Note color"
+        data-testid="color-picker"
+      >
+        {#each colors as c (c.id)}
+          <button
+            type="button"
+            class="notes-view__color-dot"
+            class:notes-view__color-dot--selected={activeColor === c.id}
+            class:notes-view__color-dot--none={c.id === 'none'}
+            style:--dot-color={c.hex ?? 'transparent'}
+            role="radio"
+            aria-checked={activeColor === c.id}
+            aria-label={c.id === 'none'
+              ? 'Remove color'
+              : `Set note color to ${c.label}`}
+            title={c.label}
+            data-testid={`color-${c.id}`}
+            data-color={c.id}
+            onclick={() => onPickColor(c.id)}
+          >
+            {#if c.id === 'none'}
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 12 12"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <line x1="2" y1="10" x2="10" y2="2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+              </svg>
+            {/if}
+          </button>
+        {/each}
+      </div>
       <div class="notes-view__modes" role="tablist" aria-label="View mode">
         {#each ['source', 'preview', 'split'] as m (m)}
           <button
@@ -785,8 +843,10 @@
     text-align: left;
     background: var(--tn-bg-elevated, #24283b);
     border: 1px solid var(--tn-border, #414868);
+    border-left: 4px solid transparent; /* R196 — color tag left-border accent */
     border-radius: var(--tn-radius-md, 12px);
     padding: 16px;
+    padding-left: 14px; /* compensate for thicker left border so title doesn't shift */
     cursor: pointer;
     transition: border-color 0.15s, transform 0.15s;
   }
@@ -816,6 +876,76 @@
   }
   .notes-card__tags {
     color: var(--tn-accent-purple, #bb9af7);
+  }
+
+  /* R196 — color picker. 9 dots in a row. 56dp touch target, 24dp visual
+   * dot, 2px border. Selected = highlighted ring + small scale-up.
+   * Unselected = just the colored fill with a thin border. The `none`
+   * swatch is a hollow circle with a diagonal slash, so it reads as
+   * "no color". prefers-reduced-motion disables the color change
+   * transition. */
+  .notes-view__color-picker {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background: var(--tn-bg, #1a1b26);
+    border: 1px solid var(--tn-border, #414868);
+    border-radius: 999px;
+  }
+  .notes-view__color-dot {
+    --dot-color: transparent;
+    position: relative;
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    border: 0;
+    border-radius: 50%;
+    /* Visible dot: 24x24, centered. Padding expands to 56x56 touch
+     * area WITHOUT changing the visual size. */
+    width: 56px;
+    height: 56px;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--tn-fg-muted, #565f89);
+    transition: transform 0.12s;
+  }
+  .notes-view__color-dot::before {
+    content: '';
+    display: block;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--dot-color);
+    border: 2px solid var(--tn-border, #414868);
+    box-sizing: border-box;
+    transition: border-color 0.12s, box-shadow 0.12s;
+  }
+  .notes-view__color-dot:hover::before {
+    border-color: var(--tn-fg-dim, #9aa5ce);
+  }
+  .notes-view__color-dot--selected::before {
+    border-color: var(--tn-fg, #c0caf5);
+    box-shadow: 0 0 0 2px var(--tn-bg, #1a1b26);
+  }
+  .notes-view__color-dot--selected {
+    transform: scale(1.08);
+  }
+  .notes-view__color-dot--none::before {
+    background: var(--tn-bg-elevated, #24283b);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .notes-view__color-dot,
+    .notes-view__color-dot::before {
+      transition: none;
+    }
+    .notes-view__color-dot--selected {
+      transform: none;
+    }
   }
 
   .btn {

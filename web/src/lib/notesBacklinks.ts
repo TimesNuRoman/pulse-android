@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 /**
  * Notes backlinks & tags — pure functions, no store dependency.
  *
@@ -5,6 +6,10 @@
  * they can be unit-tested without Svelte or DOM, and so a future "import notes
  * from file" feature can re-use them.
  */
+
+import type { NoteColor } from './noteColors';
+
+export type { NoteColor };
 
 export interface Note {
   id: string;
@@ -19,6 +24,12 @@ export interface Note {
    * Reversible delete — see `./notesArchive.ts` for the pure helpers.
    */
   archivedAt?: number | null;
+  /**
+   * Visual category tag (R196). Stored as the stable id, never the HEX.
+   * The HEX is looked up via `getNoteColorHex` so we can re-skin the palette
+   * in one place without migrating user data.
+   */
+  color?: NoteColor | null;
 }
 
 const WIKILINK_RE = /\[\[([^\[\]\n]+?)\]\]/g;
