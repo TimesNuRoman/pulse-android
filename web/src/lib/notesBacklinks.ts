@@ -30,6 +30,11 @@ export interface Note {
    * in one place without migrating user data.
    */
   color?: NoteColor | null;
+  // R187 — pin/favorite. ISO timestamp (ms-precision) of when the user
+  // pinned the note, or null/undefined if the note is not pinned. Stored
+  // as a string so it survives JSON round-trips through backup/restore
+  // and Capacitor storage without losing the timezone.
+  pinnedAt?: string | null;
 }
 
 const WIKILINK_RE = /\[\[([^\[\]\n]+?)\]\]/g;

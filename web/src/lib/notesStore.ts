@@ -9,6 +9,7 @@ import {
   getActiveNotes as getActiveNotesPure,
   emptyArchive as emptyArchivePure,
 } from './notesArchive';
+import { sortNotes } from './notesSort';
 
 const STORAGE_KEY = 'pulse.notes.v1';
 
@@ -320,17 +321,52 @@ function createNotesStore() {
       store.set(next);
       return removed;
     },
+    // R187 — pin/favorite. These set `pinnedAt` without touching
+    // `updatedAt` (pinning is metadata, not a content edit, so it must
+    // not reshuffle the unpinned section). Returns `true` if the note
+    // was found, `false` if the id is unknown. The boolean lets the UI
+    // fire its "no-op" haptic branch without an extra `get()`.
+    pinNote(id: string): boolean {
+      let found = false;
+      store.update((notes) =>
+        notes.map((n) => {
+          if (n.id !== id) return n;
+          found = true;
+          return { ...n, pinnedAt: new Date().toISOString() };
+        }),
+      );
+      return found;
+    },
+    unpinNote(id: string): boolean {
+      let found = false;
+      store.update((notes) =>
+        notes.map((n) => {
+          if (n.id !== id) return n;
+          found = true;
+          return { ...n, pinnedAt: null };
+        }),
+      );
+      return found;
+    },
+    togglePin(id: string): boolean {
+      const current = get(store).find((n) => n.id === id);
+      if (!current) return false;
+      return current.pinnedAt ? this.unpinNote(id) : this.pinNote(id);
+    },
   };
 }
 
 export const notesStore = createNotesStore();
 
-export const sortedNotes = derived(notesStore, ($notes) =>
-  [...$notes].sort((a, b) => b.updatedAt - a.updatedAt),
-);
+// R187 — sortedNotes now respects pin state via sortNotes(): pinned
+// notes first (by pinnedAt desc), then unpinned (by updatedAt desc).
+export const sortedNotes = derived(notesStore, ($notes) => sortNotes($notes));
 
+// R202 + R187 — activeSortedNotes filters out archived notes (R202), then
+// applies the pin-aware sort (R187). Pinned active notes float to the
+// top; archived notes are hidden from the main list.
 export const activeSortedNotes = derived(notesStore, ($notes) =>
-  getActiveNotesPure($notes).sort((a, b) => b.updatedAt - a.updatedAt),
+  sortNotes(getActiveNotesPure($notes)),
 );
 
 export const archivedSortedNotes = derived(notesStore, ($notes) =>
