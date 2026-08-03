@@ -4,6 +4,8 @@
   import { APP_VERSION, updateChecker } from '$lib/update-checker/update-checker';
   import { hapticImpact } from '$lib/capacitor';
   import { hapticsEnabled, setHapticsEnabled, tap } from '$lib/haptics';
+  import SettingsSearch from '../components/SettingsSearch.svelte';
+  import type { SettingEntry } from '$lib/settingsRegistry';
   import { onMount } from 'svelte';
 
   interface Props {
@@ -11,6 +13,43 @@
     onReplayOnboarding: () => void;
   }
   let { onBack, onReplayOnboarding }: Props = $props();
+
+  // R178 — search overlay state. Local to the view; no other view
+  // needs to open it today. If a future R-round wants a global shortcut,
+  // lift `searchOpen` into a store and mount SettingsSearch from App.svelte.
+  let searchOpen = $state(false);
+
+  function openSearch(): void {
+    void hapticImpact({ light: true });
+    searchOpen = true;
+  }
+
+  function closeSearch(): void {
+    searchOpen = false;
+  }
+
+  /**
+   * Dispatch a search result: scroll to its target section, or open
+   * its link in a new tab. No-op if the entry has neither (defensive —
+   * the registry only ships entries with one of the two today).
+   */
+  function handleSelect(entry: SettingEntry): void {
+    if (entry.link) {
+      window.open(entry.link, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    if (entry.scrollTarget) {
+      // Defer to the next frame so the overlay has time to unmount and
+      // the layout reflows before we scroll. Without this, the scroll
+      // races the close animation and the user sees a jump.
+      requestAnimationFrame(() => {
+        const el = document.querySelector(entry.scrollTarget!);
+        if (el instanceof HTMLElement) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    }
+  }
 
   // Cache-snapshot of the manifest that update-checker last saw. Read
   // once on mount — Settings is informational, not live. Host and SHA
@@ -81,9 +120,34 @@
       Back
     </button>
     <h1 class="settings-view__title">Settings</h1>
+    <button
+      type="button"
+      class="settings-view__search-btn"
+      onclick={openSearch}
+      data-testid="settings-search-button"
+      aria-label="Search settings"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="11" cy="11" r="7"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+    </button>
   </header>
 
-  <section class="settings-view__section" data-testid="settings-section-profile" aria-labelledby="settings-profile-h">
+  <section
+    id="settings-section-profile"
+    class="settings-view__section"
+    data-testid="settings-section-profile"
+    aria-labelledby="settings-profile-h"
+  >
     <h2 class="settings-view__section-title" id="settings-profile-h">Profile</h2>
     <label class="settings-view__field">
       <span class="settings-view__label">Display name (optional)</span>
@@ -100,7 +164,12 @@
     </label>
   </section>
 
-  <section class="settings-view__section" data-testid="settings-section-theme" aria-labelledby="settings-theme-h">
+  <section
+    id="settings-section-theme"
+    class="settings-view__section"
+    data-testid="settings-section-theme"
+    aria-labelledby="settings-theme-h"
+  >
     <h2 class="settings-view__section-title" id="settings-theme-h">Theme</h2>
     <p class="settings-view__hint" data-testid="settings-theme-note">Dark only. Tokyo Night palette.</p>
     <div class="settings-view__swatches" aria-label="Tokyo Night palette swatches" data-testid="settings-swatches">
@@ -111,7 +180,12 @@
     </div>
   </section>
 
-  <section class="settings-view__section" data-testid="settings-section-feedback" aria-labelledby="settings-feedback-h">
+  <section
+    id="settings-section-feedback"
+    class="settings-view__section"
+    data-testid="settings-section-feedback"
+    aria-labelledby="settings-feedback-h"
+  >
     <h2 class="settings-view__section-title" id="settings-feedback-h">Feedback</h2>
     <label class="settings-view__toggle">
       <span class="settings-view__label">Haptics</span>
@@ -129,7 +203,12 @@
     </p>
   </section>
 
-  <section class="settings-view__section" data-testid="settings-section-about" aria-labelledby="settings-about-h">
+  <section
+    id="settings-section-about"
+    class="settings-view__section"
+    data-testid="settings-section-about"
+    aria-labelledby="settings-about-h"
+  >
     <h2 class="settings-view__section-title" id="settings-about-h">About</h2>
     <dl class="settings-view__meta">
       <div class="settings-view__meta-row">
@@ -164,7 +243,12 @@
     </dl>
   </section>
 
-  <section class="settings-view__section" data-testid="settings-section-actions" aria-labelledby="settings-actions-h">
+  <section
+    id="settings-section-actions"
+    class="settings-view__section"
+    data-testid="settings-section-actions"
+    aria-labelledby="settings-actions-h"
+  >
     <h2 class="settings-view__section-title" id="settings-actions-h">Actions</h2>
     <button
       type="button"
@@ -183,6 +267,12 @@
       Reset to mock data
     </button>
   </section>
+
+  <SettingsSearch
+    open={searchOpen}
+    onClose={closeSearch}
+    onSelect={handleSelect}
+  />
 </main>
 
 <style>
@@ -302,5 +392,26 @@
   .settings-view__action {
     width: 100%;
     margin-top: 8px;
+  }
+  .settings-view__search-btn {
+    flex: 0 0 var(--tn-touch-pref);
+    width: var(--tn-touch-pref);
+    height: var(--tn-touch-pref);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--tn-fg);
+    background: transparent;
+    border: 1px solid var(--tn-border);
+    border-radius: var(--tn-radius-sm);
+  }
+  .settings-view__search-btn:hover,
+  .settings-view__search-btn:focus-visible {
+    color: var(--tn-accent-blue);
+    border-color: var(--tn-accent-blue);
+  }
+  .settings-view__search-btn svg {
+    width: 20px;
+    height: 20px;
   }
 </style>
