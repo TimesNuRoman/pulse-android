@@ -4,9 +4,11 @@
   import NoteToolbar, { type ToolbarAction } from '../components/notes/NoteToolbar.svelte';
   import TagAutocomplete from '../components/notes/TagAutocomplete.svelte';
   import SplitPane from '../components/notes/SplitPane.svelte';
+  import NotesSearch from '../components/NotesSearch.svelte';
   import SettingsView from './SettingsView.svelte';
   import { notesStore, sortedNotes, allTags, backlinkIndex } from '../lib/notesStore';
   import { extractBacklinks, extractTags, type Note } from '../lib/notesBacklinks';
+  import { searchNotes } from '../lib/notesSearch';
   import { share, copyToClipboard, hapticImpact } from '../lib/capacitor';
   import { tap } from '../lib/haptics';
 
@@ -25,6 +27,7 @@
   let saveState: 'idle' | 'saving' | 'saved' = $state('idle');
   let titleInput: HTMLInputElement | undefined = $state();
   let showBacklinks: boolean = $state(false);
+  let searchQuery: string = $state('');
 
   // Tag autocomplete state
   let tagPopupOpen: boolean = $state(false);
@@ -50,13 +53,33 @@
   const activeNote: Note | undefined = $derived(
     activeNoteId ? $notesStore.find((n) => n.id === activeNoteId) : undefined,
   );
-  const notes = $derived($sortedNotes);
   const tags = $derived($allTags);
   const backlinksTo = $derived.by((): Note[] => {
     if (!activeNote) return [];
     return $backlinkIndex.get(activeNote.title.toLowerCase()) ?? [];
   });
   const noteTags = $derived(activeNote ? extractTags(activeNote.content) : []);
+
+  // R193 — notes full-text search. Empty query → upstream `$sortedNotes`
+  // (preserves R187 sort). Non-empty → 6-level scored + tiebroken result.
+  const visibleNotes = $derived(
+    searchQuery.trim() ? searchNotes($sortedNotes, searchQuery) : $sortedNotes,
+  );
+  const notes = $derived(visibleNotes);
+  const searchResultCount = $derived(notes.length);
+
+  // R193 — fire a `selection` haptic on empty ↔ non-empty filter transitions
+  // (start a search, clear a search). Mid-typing transitions stay quiet.
+  let prevSearchQuery = '';
+  $effect(() => {
+    const q = searchQuery;
+    const wasEmpty = prevSearchQuery === '';
+    const isEmpty = q === '';
+    prevSearchQuery = q;
+    if (wasEmpty !== isEmpty) {
+      void tap('selection');
+    }
+  });
 
   function openNote(id: string): void {
     activeNoteId = id;
@@ -223,6 +246,11 @@
         <span class="sr-only">Settings</span>
       </button>
     </header>
+    <NotesSearch
+      bind:query={searchQuery}
+      filteredCount={searchResultCount}
+      totalCount={$sortedNotes.length}
+    />
     <ul class="notes-view__list" data-testid="notes-list">
       {#each notes as n (n.id)}
         <li>
