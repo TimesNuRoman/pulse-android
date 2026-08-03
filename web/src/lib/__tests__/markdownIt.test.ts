@@ -51,7 +51,10 @@ describe('markdownIt — renderMarkdown', () => {
 
   it('linkifies URLs', () => {
     const html = renderMarkdown('check https://example.com today');
-    expect(html).toContain('<a href="https://example.com"');
+    expect(html).toContain('class="autolink"');
+    expect(html).toContain('href="https://example.com"');
+    expect(html).toContain('target="_blank"');
+    expect(html).toContain('rel="noopener noreferrer"');
   });
 
   it('escapes HTML entities in normal text', () => {
@@ -220,5 +223,107 @@ describe('getMarkdownIt — caching', () => {
     const a = getMarkdownIt();
     const b = getMarkdownIt();
     expect(a).toBe(b);
+  });
+});
+
+describe('markdownIt — autolink pass (R158)', () => {
+  it('autolinks a bare https URL and adds target/rel', () => {
+    const html = renderMarkdown('check https://example.com today');
+    expect(html).toContain('class="autolink"');
+    expect(html).toContain('href="https://example.com"');
+    expect(html).toContain('target="_blank"');
+    expect(html).toContain('rel="noopener noreferrer"');
+  });
+
+  it('autolinks a URL with path', () => {
+    const html = renderMarkdown('see https://example.com/path/to/page');
+    expect(html).toContain('class="autolink"');
+    expect(html).toContain('href="https://example.com/path/to/page"');
+  });
+
+  it('autolinks a URL with query string (ampersand escaped)', () => {
+    const html = renderMarkdown('hit https://example.com?q=hello&x=1 now');
+    expect(html).toContain('class="autolink"');
+    expect(html).toContain('href="https://example.com?q=hello&amp;x=1"');
+  });
+
+  it('autolinks www. URLs with http:// prefix', () => {
+    const html = renderMarkdown('visit www.example.com soon');
+    expect(html).toContain('class="autolink"');
+    expect(html).toContain('href="http://www.example.com"');
+  });
+
+  it('handles GitHub-flavored <URL> syntax', () => {
+    const html = renderMarkdown('open <https://example.com/docs> now');
+    expect(html).toContain('class="autolink"');
+    expect(html).toContain('href="https://example.com/docs"');
+    expect(html).toContain('>https://example.com/docs<');
+  });
+
+  it('autolinks email addresses with mailto:', () => {
+    const html = renderMarkdown('contact: hello@example.com');
+    expect(html).toContain('class="autolink"');
+    expect(html).toContain('href="mailto:hello@example.com"');
+    expect(html).toContain('>hello@example.com<');
+  });
+
+  it('does not double-wrap an existing markdown link', () => {
+    const html = renderMarkdown('see [docs](https://example.com) now');
+    // The href is linkified only once, body is the original "docs" text.
+    const anchorCount = (html.match(/<a[^>]*href="https:\/\/example\.com"/g) ?? []).length;
+    expect(anchorCount).toBe(1);
+    expect(html).toContain('class="autolink"');
+    expect(html).toContain('>docs<');
+  });
+
+  it('does not linkify URLs inside inline code', () => {
+    const html = renderMarkdown('here is `https://example.com` literal');
+    expect(html).toContain('<code>https://example.com</code>');
+    expect(html).not.toContain('class="autolink"');
+  });
+
+  it('rejects unsafe URL schemes (javascript:) and renders as plain text', () => {
+    const html = renderMarkdown('do not click javascript:alert(1) here');
+    expect(html).not.toContain('class="autolink"');
+    expect(html).not.toContain('<a href="javascript:');
+    // The visible text is still there, just not wrapped in an anchor.
+    expect(html).toContain('javascript:alert(1)');
+  });
+
+  it('rejects unsafe scheme passed via markdown link syntax', () => {
+    const html = renderMarkdown('[click](javascript:alert(1))');
+    expect(html).not.toContain('<a ');
+    expect(html).toContain('click');
+  });
+
+  it('leaves wikilink anchors alone (does not overwrite their class)', () => {
+    const html = renderMarkdown('see [[Project Alpha]] for details');
+    expect(html).toContain('class="wikilink"');
+    expect(html).toContain('data-target="Project Alpha"');
+    expect(html).not.toContain('class="autolink"');
+    expect(html).not.toContain('target="_blank"');
+  });
+
+  it('leaves tag anchors alone (does not overwrite their class)', () => {
+    const html = renderMarkdown('thinking #rust and #wasm');
+    expect(html).toContain('class="tag"');
+    expect(html).toContain('data-tag="rust"');
+    expect(html).not.toContain('class="autolink"');
+  });
+
+  it('handles bare URL adjacent to wikilink (mixed links)', () => {
+    const html = renderMarkdown('[[A]] and https://b.com and #tag');
+    expect(html).toContain('class="wikilink"');
+    expect(html).toContain('class="autolink"');
+    expect(html).toContain('href="https://b.com"');
+    expect(html).toContain('class="tag"');
+  });
+
+  it('does not add target/rel to scheme-relative or fragment links', () => {
+    // markdown-it linkify will not autolink a bare fragment; the post-pass
+    // should still not crash on edge inputs.
+    const html = renderMarkdown('text with #fragment-like-thing');
+    // # is treated as a tag (or text); no autolink class should appear.
+    expect(html).not.toContain('class="autolink"');
   });
 });

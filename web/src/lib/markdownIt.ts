@@ -12,6 +12,12 @@ import markdown from 'highlight.js/lib/languages/markdown';
 import type { PluginSimple } from 'markdown-it';
 import { extractBacklinks, extractTags } from './notesBacklinks';
 
+/**
+ * Whitelisted URL schemes for autolinks. Anything else (javascript:, data:,
+ * vbscript:, file:, etc.) is rendered as plain text.
+ */
+const SAFE_URL_SCHEMES = new Set(['http:', 'https:', 'mailto:']);
+
 let md: MarkdownIt | null = null;
 
 /**
@@ -196,9 +202,43 @@ function escapeAttr(s: string): string {
  * Render markdown to HTML string. Returns safe HTML — html: false prevents
  * raw <script> tags from going through. Custom plugin HTML is built by us
  * with proper escaping, so XSS via wikilink/tag is mitigated.
+ *
+ * After rendering, an autolink pass upgrades linkify-generated anchors:
+ *   <a href="...">           -> <a class="autolink" href="..." target="_blank" rel="noopener noreferrer">
+ * Pre-existing class-bearing anchors (wikilink, tag) are left untouched.
+ * Bare URLs / <URL> / email are already detected by markdown-it linkify;
+ * this pass adds the missing attributes and the scheme whitelist check.
  */
 export function renderMarkdown(source: string): string {
-  return getMarkdownIt().render(source ?? '');
+  const html = getMarkdownIt().render(source ?? '');
+  return autolink(html);
+}
+
+/**
+ * Post-render autolink pass. Matches the full <a ...>...</a> block emitted
+ * by markdown-it linkify, then:
+ *   - skips anchors that already carry a class (wikilink, tag)
+ *   - validates the URL scheme against a whitelist
+ *   - if unsafe, returns the inner text only (drops the anchor entirely)
+ *   - if safe, rewrites the opening tag to add class + target + rel
+ *
+ * The body text is left untouched: linkify/markdown-it already escaped any
+ * HTML metacharacters in the source, so XSS via URL text is mitigated.
+ */
+function autolink(html: string): string {
+  return html.replace(/<a\s+href="([^"]*)"([^>]*)>([\s\S]*?)<\/a>/g, (_match, href: string, rest: string, body: string) => {
+    if (/\bclass="[^"]*"/.test(rest)) return _match;
+
+    const schemeMatch = href.match(/^([a-zA-Z][a-zA-Z0-9+.\-]*):/);
+    const scheme = schemeMatch ? schemeMatch[1].toLowerCase() + ':' : '';
+    if (scheme && !SAFE_URL_SCHEMES.has(scheme)) {
+      // Strip the anchor; keep the visible text. Linkify usually filters
+      // javascript:/data: before they ever reach here, but defense in depth.
+      return body;
+    }
+
+    return `<a class="autolink" href="${href}" target="_blank" rel="noopener noreferrer">${body}</a>`;
+  });
 }
 
 /**
