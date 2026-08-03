@@ -222,3 +222,155 @@ describe('getMarkdownIt — caching', () => {
     expect(a).toBe(b);
   });
 });
+
+describe('markdownIt - [^id] footnotes (R159)', () => {
+  it('renders a single footnote with sup ref and section', () => {
+    const html = renderMarkdown('text[^1] ok\n\n[^1]: my note');
+    expect(html).toContain('<sup class="footnote-ref">');
+    expect(html).toContain('<a href="#fn-1" id="fnref-1"');
+    expect(html).toContain('aria-describedby="fn-1"');
+    expect(html).toContain('>1</a>');
+    expect(html).toContain('<section class="footnotes"');
+    expect(html).toContain('<li id="fn-1"');
+    expect(html).toContain('my note');
+    expect(html).toContain('href="#fnref-1"');
+    expect(html).toContain('class="footnote-backref"');
+  });
+
+  it('numbers multiple anonymous footnotes sequentially', () => {
+    const html = renderMarkdown('text[^1] and [^2] done\n\n[^1]: one\n[^2]: two');
+    // Both refs in body
+    expect(html).toContain('href="#fn-1"');
+    expect(html).toContain('href="#fn-2"');
+    expect(html).toContain('>1</a>');
+    expect(html).toContain('>2</a>');
+    // Both defs in section, in definition order
+    const idx1 = html.indexOf('<li id="fn-1"');
+    const idx2 = html.indexOf('<li id="fn-2"');
+    expect(idx1).toBeGreaterThan(0);
+    expect(idx2).toBeGreaterThan(idx1);
+    expect(html).toContain('>one <');
+    expect(html).toContain('>two <');
+  });
+
+  it('uses the label for named footnotes', () => {
+    const html = renderMarkdown('text[^barker] ok\n\n[^barker]: barker note');
+    expect(html).toContain('href="#fn-barker"');
+    expect(html).toContain('id="fnref-barker"');
+    // Label is the id itself, not a number
+    expect(html).toContain('>barker</a>');
+    expect(html).toContain('<li id="fn-barker"');
+    expect(html).toContain('barker note');
+  });
+
+  it('includes a backlink in each <li> with aria-label', () => {
+    const html = renderMarkdown('text[^1] ok\n\n[^1]: my note');
+    expect(html).toContain('class="footnote-backref"');
+    expect(html).toContain('aria-label="back to text"');
+    expect(html).toContain('>back</a>');
+  });
+
+  it('leaves undefined references as plain text (no broken link)', () => {
+    const html = renderMarkdown('text[^99] no def');
+    expect(html).toContain('[^99]');
+    expect(html).not.toContain('href="#fn-99"');
+    expect(html).not.toContain('<section class="footnotes"');
+  });
+
+  it('does not linkify [^id] inside inline code', () => {
+    const html = renderMarkdown('`[^1]` ok\n\n[^1]: note');
+    // The inline <code>[^1]</code> must stay literal
+    expect(html).toContain('<code>[^1]</code>');
+    expect(html).not.toContain('href="#fn-1"');
+  });
+
+  it('does not linkify [^id] inside fenced code blocks', () => {
+    const html = renderMarkdown(
+      '```\n[^1] in code\n```\n\ntext[^1] ok\n\n[^1]: real note'
+    );
+    // The fenced code block keeps [^1] literal
+    expect(html).toContain('<pre><code>[^1] in code');
+    // The body ref still linkifies
+    expect(html).toContain('href="#fn-1"');
+    expect(html).toContain('real note');
+  });
+
+  it('handles multiple references to the same footnote', () => {
+    const html = renderMarkdown('text[^1] more[^1] end\n\n[^1]: shared note');
+    // Two refs in body
+    const refCount = (html.match(/id="fnref-1"/g) ?? []).length;
+    expect(refCount).toBe(2);
+    // Single <li> in section
+    const liCount = (html.match(/<li id="fn-1"/g) ?? []).length;
+    expect(liCount).toBe(1);
+  });
+
+  it('renders empty footnote as empty <li> with backlink', () => {
+    const html = renderMarkdown('text[^1]\n\n[^1]: ');
+    // Section still appears
+    expect(html).toContain('<section class="footnotes"');
+    // <li> exists
+    expect(html).toContain('<li id="fn-1"');
+    // Backlink exists
+    expect(html).toContain('class="footnote-backref"');
+  });
+
+  it('ignores definitions inside fenced code blocks (no list entry for them)', () => {
+    const html = renderMarkdown(
+      '```\n[^1]: def-in-code\n```\n\ntext[^1]\n\n[^1]: real def'
+    );
+    // The "def-in-code" is in the code block (literal) - it shows up as code text.
+    // But it must NOT be registered as a footnote definition. So the section has
+    // exactly 1 <li> for the "real def", not 2.
+    const liCount = (html.match(/<li id="fn-/g) ?? []).length;
+    expect(liCount).toBe(1);
+    // The "real def" appears in the list
+    expect(html).toContain('real def');
+  });
+
+  it('skips unreferenced definitions (orphan defs do not appear)', () => {
+    const html = renderMarkdown('just text\n\n[^1]: orphan def');
+    expect(html).toContain('just text');
+    expect(html).not.toContain('orphan def');
+    expect(html).not.toContain('<section class="footnotes"');
+  });
+
+  it('escapes HTML in footnote definitions (XSS protection)', () => {
+    const html = renderMarkdown(
+      'text[^1]\n\n[^1]: <script>alert(1)</script>'
+    );
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
+  });
+
+  it('escapes HTML attributes in footnote definitions (XSS protection)', () => {
+    const html = renderMarkdown(
+      'text[^1]\n\n[^1]: <img src=x onerror=alert(1)>'
+    );
+    expect(html).not.toContain('<img');
+    expect(html).toContain('&lt;img');
+  });
+
+  it('escapes special characters in the footnote id used in href', () => {
+    // IDs with hyphens are valid and must be preserved
+    const html = renderMarkdown('text[^my-note] ok\n\n[^my-note]: note');
+    expect(html).toContain('href="#fn-my-note"');
+    expect(html).toContain('id="fnref-my-note"');
+  });
+
+  it('renders the section at the bottom of the document', () => {
+    const html = renderMarkdown('text[^1]\n\n[^1]: note');
+    // Body content appears before the section
+    const pIdx = html.indexOf('text<sup');
+    const sectionIdx = html.indexOf('<section class="footnotes"');
+    expect(pIdx).toBeGreaterThanOrEqual(0);
+    expect(sectionIdx).toBeGreaterThan(pIdx);
+  });
+
+  it('hides definition lines from the body (no visible "[^1]: text" paragraph)', () => {
+    const html = renderMarkdown('text[^1] ok\n\n[^1]: my note');
+    // The def line itself must not appear as a body paragraph
+    expect(html).not.toContain('<p>[^1]: my note</p>');
+    expect(html).not.toContain('<p>[^1]:</p>');
+  });
+});

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Pulse Notes - markdown renderer (R136 + R159 footnotes)
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js/lib/core';
 import javascript from 'highlight.js/lib/languages/javascript';
@@ -200,10 +202,174 @@ function escapeAttr(s: string): string {
  * Render markdown to HTML string. Returns safe HTML — html: false prevents
  * raw <script> tags from going through. Custom plugin HTML is built by us
  * with proper escaping, so XSS via wikilink/tag is mitigated.
+ *
+ * R159: footnotes pass — extracts `[^id]: text` defs before render, then
+ * substitutes `[^id]` in the body with `<sup>` links and appends a
+ * `<section class="footnotes">` at the bottom. Definitions in fenced code
+ * blocks are ignored; references in `<pre>` blocks are not linkified.
  */
 export function renderMarkdown(source: string): string {
-  const html = getMarkdownIt().render(source ?? '');
-  return applyCodeBlockFold(html, { threshold: CODE_FOLD_THRESHOLD });
+  const src = source ?? '';
+  if (src === '') return '';
+  const { source: cleaned, defs } = extractFootnoteDefs(src);
+  const html = getMarkdownIt().render(cleaned);
+  const folded = applyCodeBlockFold(html, { threshold: CODE_FOLD_THRESHOLD });
+  if (defs.length === 0) return folded;
+  return renderFootnoteBody(folded, defs);
+}
+
+interface FootnoteDef {
+  id: string;
+  text: string;
+  number: number;
+}
+
+/**
+ * Extract `[^id]: text` definitions at the start of a line.
+ * - Up to 3 leading spaces (standard markdown indented block).
+ * - `id` is `\w+` (letters, digits, underscore) plus `-`.
+ * - Defs inside fenced code blocks (``` or ~~~) are ignored.
+ * - Duplicate ids: first occurrence wins.
+ * - Multi-line def: continuation lines indented with 4+ spaces or a tab.
+ * - Returns the source with def lines removed (and the def registry).
+ */
+function extractFootnoteDefs(source: string): { source: string; defs: FootnoteDef[] } {
+  const lines = source.split('\n');
+  const out: string[] = [];
+  const defs: FootnoteDef[] = [];
+  const seen = new Set<string>();
+  let inFence = false;
+  let fenceChar = '';
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const fenceMatch = line.match(/^(\s{0,3})(`{3,}|~{3,})/);
+    if (fenceMatch) {
+      if (!inFence) {
+        inFence = true;
+        fenceChar = fenceMatch[2][0];
+      } else if (line.trimStart().startsWith(fenceChar.repeat(3))) {
+        inFence = false;
+        fenceChar = '';
+      }
+    }
+
+    if (!inFence) {
+      const defMatch = line.match(/^(\s{0,3})\[\^([\w-]+)\]:[ \t]*(.*)$/);
+      if (defMatch) {
+        const id = defMatch[2];
+        if (!seen.has(id)) {
+          seen.add(id);
+          let text = defMatch[3];
+          // Look for indented continuation (4+ spaces or tab)
+          let j = i + 1;
+          while (j < lines.length) {
+            const cont = lines[j];
+            if (/^( {4,}|\t)/.test(cont)) {
+              text += '\n' + cont.replace(/^( {4}|\t)/, '');
+              j++;
+            } else {
+              break;
+            }
+          }
+          // Trim trailing whitespace per line, then collapse trailing newlines.
+          text = text.replace(/[ \t]+$/gm, '').replace(/\n+$/, '');
+          defs.push({ id, text, number: 0 });
+          i = j;
+          continue;
+        }
+        // Duplicate def - drop the line, do not register a second entry
+        i++;
+        continue;
+      }
+    }
+
+    out.push(line);
+    i++;
+  }
+
+  return { source: out.join('\n'), defs };
+}
+
+/**
+ * Post-process rendered HTML to:
+ *   1. Replace each `[^id]` reference (outside `<pre>` blocks) with a
+ *      `<sup><a>` link, IF a definition exists. Otherwise the text is kept
+ *      as-is (no broken link).
+ *   2. Assign sequential numbers to footnotes by first-reference order.
+ *      Numeric ids (`[^1]`) display their number; named ids (`[^barker]`)
+ *      display their label.
+ *   3. Append a `<section class="footnotes">` listing all defs (in
+ *      definition order), each with a back-link to its reference.
+ */
+function renderFootnoteBody(html: string, defs: FootnoteDef[]): string {
+  const defMap = new Map<string, FootnoteDef>();
+  for (const d of defs) defMap.set(d.id, d);
+
+  // Split by <pre>...</pre> and <code>...</code> blocks; we only substitute
+  // inside non-pre/non-code segments so refs inside code stay literal.
+  const skipRe = /<pre>[\s\S]*?<\/pre>|<code>[\s\S]*?<\/code>/g;
+  const segments: { text: string; skip: boolean }[] = [];
+  let last = 0;
+  for (const m of html.matchAll(skipRe)) {
+    const idx = m.index ?? 0;
+    if (idx > last) segments.push({ text: html.slice(last, idx), skip: false });
+    segments.push({ text: m[0], skip: true });
+    last = idx + m[0].length;
+  }
+  if (last < html.length) segments.push({ text: html.slice(last), skip: false });
+
+  const refRe = /\[\^([\w-]+)\]/g;
+  let counter = 0;
+  const out: string[] = [];
+  for (const seg of segments) {
+    if (seg.skip) {
+      out.push(seg.text);
+      continue;
+    }
+    const replaced = seg.text.replace(refRe, (match, id: string) => {
+      const def = defMap.get(id);
+      if (!def) return match; // undefined ref - leave as plain text
+      if (def.number === 0) {
+        counter++;
+        def.number = counter;
+      }
+      const label = isNumericId(id) ? String(def.number) : id;
+      return (
+        `<sup class="footnote-ref">` +
+        `<a href="#fn-${escapeAttr(id)}" id="fnref-${escapeAttr(id)}" ` +
+        `aria-describedby="fn-${escapeAttr(id)}">${escapeHtml(label)}</a>` +
+        `</sup>`
+      );
+    });
+    out.push(replaced);
+  }
+
+  // Build the section (in definition order, not number order).
+  const items: string[] = [];
+  for (const d of defs) {
+    if (d.number === 0) continue; // never referenced
+    items.push(
+      `<li id="fn-${escapeAttr(d.id)}" value="${d.number}">` +
+        `${escapeHtml(d.text)} ` +
+        `<a href="#fnref-${escapeAttr(d.id)}" class="footnote-backref" ` +
+        `aria-label="back to text">back</a>` +
+        `</li>`
+    );
+  }
+  if (items.length === 0) return out.join('');
+
+  const section =
+    `\n<section class="footnotes" aria-label="Footnotes">\n` +
+    `<ol>\n${items.join('\n')}\n</ol>\n` +
+    `</section>\n`;
+
+  return out.join('') + section;
+}
+
+function isNumericId(id: string): boolean {
+  return /^\d+$/.test(id);
 }
 
 /**
