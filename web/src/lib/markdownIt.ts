@@ -11,6 +11,10 @@ import python from 'highlight.js/lib/languages/python';
 import markdown from 'highlight.js/lib/languages/markdown';
 import type { PluginSimple } from 'markdown-it';
 import { extractBacklinks, extractTags } from './notesBacklinks';
+import { applyCodeBlockFold } from './markdownFold';
+
+/** Code blocks with more than this many visible lines are wrapped in <details>. */
+const CODE_FOLD_THRESHOLD = 5;
 
 let md: MarkdownIt | null = null;
 
@@ -198,7 +202,8 @@ function escapeAttr(s: string): string {
  * with proper escaping, so XSS via wikilink/tag is mitigated.
  */
 export function renderMarkdown(source: string): string {
-  return getMarkdownIt().render(source ?? '');
+  const html = getMarkdownIt().render(source ?? '');
+  return applyCodeBlockFold(html, { threshold: CODE_FOLD_THRESHOLD });
 }
 
 /**
