@@ -49,8 +49,9 @@ describe('saveBackupFile', () => {
   });
 
   it('returns noop when window/document are unavailable', async () => {
-    // Simulate non-browser env. We can't delete window, but we can stub
-    // document to null. The function checks for `document` first.
+    // Simulate non-browser env. `window` cannot be deleted in jsdom, so
+    // `document` is stubbed to undefined instead. The function checks
+    // for `document` first.
     const originalDocument = (globalThis as { document?: unknown }).document;
     (globalThis as { document?: unknown }).document = undefined;
     try {
