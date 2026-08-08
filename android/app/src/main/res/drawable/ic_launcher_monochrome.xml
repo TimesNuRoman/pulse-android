@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  R166 — Pulse monochrome icon (Android 13+ themed icons).
+  R246 - Pulse monochrome icon (Android 13+ themed icons).
   The system tints this to match the wallpaper / theme color, so we
-  ship white on transparent. Same geometry as the color foreground
-  (ic_launcher_foreground.xml / ic_pulse_logo.xml).
+  ship the paper-plane silhouette in solid white on transparent.
+  Both wings collapse to one color under the system tint (no depth
+  visible after tinting), but the outline still reads as a paper
+  plane. Same geometry as drawable/ic_launcher_foreground.xml.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -11,14 +13,8 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- "P" letter, hollow bowl -->
+    <!-- Paper plane silhouette (white, system-tints to theme color). -->
     <path
         android:fillColor="#FFFFFF"
-        android:fillType="evenOdd"
-        android:pathData="M 30,28 L 30,80 L 40,80 L 40,64 L 58,64 C 68,64 74,57 74,48 C 74,39 68,28 58,28 L 30,28 Z M 40,38 L 58,38 C 62,38 65,42 65,48 C 65,52 62,56 58,56 L 40,56 L 40,38 Z" />
-
-    <!-- 4-point spark -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M 84,24 L 86,32 L 94,34 L 86,36 L 84,44 L 82,36 L 74,34 L 82,32 Z" />
+        android:pathData="M30,54 L78,34 L64,74 L52,58 L30,54 Z" />
 </vector>

@@ -1,13 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  R166 — Pulse adaptive-icon foreground.
-  Same geometry as drawable/ic_pulse_logo.xml (the master mark), kept as
-  a separate file so the launcher XML (mipmap-anydpi-v26/ic_launcher.xml)
-  can reference it directly via @drawable/ic_launcher_foreground.
-  Tokyo Night palette: P in #7aa2f7 (blue), spark in #bb9af7 (purple).
-  108x108dp viewport. Safe zone is the inner 66x66 (21..87). P + spark
-  are sized to fit inside the safe zone so any OEM mask (circle, squircle,
-  teardrop, rounded square) keeps the mark legible.
+  R246 - Pulse adaptive-icon foreground (paper plane mark).
+  Replaces the R166 P+spark with the paper-plane from R244 EmptyState.
+  Geometry is scaled from the R244 viewBox (64x64) to the Android
+  108x108dp viewport, then translated so the plane sits centered in
+  the 66x66 safe zone (21..87 on each axis):
+    left tip   ( 30, 54 )
+    right tip  ( 78, 34 )
+    bottom-tip ( 64, 74 )
+    fold point ( 52, 58 )
+  The fold splits the silhouette into an upper wing (#7aa2f7, cyan)
+  and a lower wing (#3d59a1, Tokyo Night dark blue) so the plane
+  reads as a folded plane rather than a kite. Both colors are from
+  the existing Tokyo Night palette - no new tokens introduced.
+  Used by mipmap-anydpi-v26/ic_launcher.xml as <foreground>.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -15,14 +21,13 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- "P" letter, hollow bowl (even-odd fill) -->
+    <!-- Upper wing (cyan, the main brand color). -->
     <path
         android:fillColor="#7aa2f7"
-        android:fillType="evenOdd"
-        android:pathData="M 30,28 L 30,80 L 40,80 L 40,64 L 58,64 C 68,64 74,57 74,48 C 74,39 68,28 58,28 L 30,28 Z M 40,38 L 58,38 C 62,38 65,42 65,48 C 65,52 62,56 58,56 L 40,56 L 40,38 Z" />
+        android:pathData="M30,54 L78,34 L52,58 Z" />
 
-    <!-- 4-point spark (pulse), upper-right of the P -->
+    <!-- Lower wing (Tokyo Night dark blue, suggests the fold). -->
     <path
-        android:fillColor="#bb9af7"
-        android:pathData="M 84,24 L 86,32 L 94,34 L 86,36 L 84,44 L 82,36 L 74,34 L 82,32 Z" />
+        android:fillColor="#3d59a1"
+        android:pathData="M30,54 L52,58 L64,74 Z" />
 </vector>
