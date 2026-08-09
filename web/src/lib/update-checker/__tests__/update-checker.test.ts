@@ -498,53 +498,65 @@ describe('resolveManifestUrls (R90)', () => {
     const urls = resolveManifestUrls({ VITE_UPDATE_MANIFEST_URL: '   ' });
     expect(urls).toEqual([...DEFAULT_MANIFEST_URLS]);
   });
-  it('chains the canonical R88 host first (R90-era policy, superseded by R93 → R103)', () => {
+  it('chains the canonical R88 host first (R90-era policy, superseded by R93 → R103 → R249)', () => {
     // R90 originally put the R88 host at index 0; R93 superseded this by
     // adding R92 + R90 to the head; R103 supersedes R93 by adding R102
-    // (the v0.6.6 public deploy) at index 0. This test now pins the
-    // R103 ordering: R102 is head, R92 is index 1, R90 is index 2,
-    // R88 is at index 3.
+    // (the v0.6.6 public deploy) at index 0; R249 supersedes R103 by
+    // adding ownlocalml.com (the stable Cloudflare R2 + Worker host)
+    // at index 0. This test now pins the R249 ordering: ownlocalml.com
+    // is head, R102 is index 1, R92 is index 2, R90 is index 3,
+    // R88 is at index 4.
     const urls = resolveManifestUrls(null);
-    expect(urls[0]).toContain('ncfosklh79sxf'); // R102 (v0.6.6)
-    expect(urls[1]).toContain('yv5eeknt6h6sa'); // R92 (v0.6.5)
-    expect(urls[2]).toContain('ad67rp710vsl7'); // R90 (v0.6.4)
-    expect(urls[3]).toContain('32dhrw35m4x2v'); // R88 (v0.6.3)
+    expect(urls[0]).toContain('ownlocalml.com'); // R249 (stable)
+    expect(urls[1]).toContain('ncfosklh79sxf'); // R102 (v0.6.6)
+    expect(urls[2]).toContain('yv5eeknt6h6sa'); // R92 (v0.6.5)
+    expect(urls[3]).toContain('ad67rp710vsl7'); // R90 (v0.6.4)
+    expect(urls[4]).toContain('32dhrw35m4x2v'); // R88 (v0.6.3)
   });
-  it('chains the R102 (ncfosklh79sxf) host first (R103 v0.6.6 deploy)', () => {
+  it('chains the R249 ownlocalml.com host first (stable R2 + Worker deploy)', () => {
+    // R249: ownlocalml.com is the long-term stable host. R102 (the
+    // v0.6.6 public-deploy head pre-R249) is now the first fallback.
     const urls = resolveManifestUrls(null);
-    expect(urls[0]).toContain('ncfosklh79sxf');
-    expect(urls[1]).toContain('yv5eeknt6h6sa');
-    expect(urls[2]).toContain('ad67rp710vsl7');
+    expect(urls[0]).toContain('ownlocalml.com');
+    expect(urls[1]).toContain('ncfosklh79sxf');
+    expect(urls[2]).toContain('yv5eeknt6h6sa');
+    expect(urls[3]).toContain('ad67rp710vsl7');
   });
-  it('chain has the v0.6.6 R102 host at the head regardless of env', () => {
-    // Env override goes BEFORE the chain head, but the R102 host must
-    // still be the first default (i.e. index 1 after the env override).
+  it('chain has the v0.6.6 R102 host at index 1 regardless of env (env override goes at head)', () => {
+    // Env override goes BEFORE the chain head, but the R249 ownlocalml
+    // host must still be the first default (i.e. index 1 after the env
+    // override), and the R102 host (the v0.6.6 public deploy) sits at
+    // index 2 as the first space.minimax.io fallback.
     const urls = resolveManifestUrls({
       VITE_UPDATE_MANIFEST_URL: 'https://custom.example.com/m.json',
     });
     expect(urls[0]).toBe('https://custom.example.com/m.json');
-    expect(urls[1]).toContain('ncfosklh79sxf');
+    expect(urls[1]).toContain('ownlocalml.com');
+    expect(urls[2]).toContain('ncfosklh79sxf');
   });
   it('APP_VERSION / APP_VERSION_CODE reflect v0.6.7 / 17', () => {
     expect(APP_VERSION).toBe('0.6.7');
     expect(APP_VERSION_CODE).toBe(17);
   });
-  it('R117 v0.6.7: installed app version is 0.6.7/17 and the R102 (ncfosklh79sxf) host is the chain head', () => {
-    // Locks the R117 release state: in-app version is bumped to 0.6.7/17,
-    // and the R102 (v0.6.6 public deploy at ncfosklh79sxf.space.minimax.io)
-    // stays at the head of the chain so v0.6.5/6/7 users on a down R102
-    // host still see "up to date" until R117 v0.6.7 is published.
+  it('R117 v0.6.7: installed app version is 0.6.7/17 and the R249 ownlocalml.com host is the chain head', () => {
+    // Locks the R117/R249 release state: in-app version stays at 0.6.7/17,
+    // and ownlocalml.com (the stable R2 + Worker host) is at the head of
+    // the chain so v0.6.5/6/7 users see the canonical manifest regardless
+    // of which space.minimax.io deploy they happened to land on.
     expect(APP_VERSION).toBe('0.6.7');
     expect(APP_VERSION_CODE).toBe(17);
     const urls = resolveManifestUrls(null);
-    expect(urls[0]).toContain('ncfosklh79sxf.space.minimax.io');
-    expect(urls[0]).toContain('/android.json');
+    expect(urls[0]).toContain('ownlocalml.com');
+    expect(urls[0]).toContain('/updates/android.json');
   });
-  it('chain length grew from 5 (R90) to 7 (R93) to 8 (R103: +R102)', () => {
-    // R93 added R92 (yv5eeknt6h6sa) at index 0 and R90 (ad67rp710vsl7) at
-    // index 1 (5 → 7 entries). R103 adds R102 (ncfosklh79sxf) at the head
-    // so v0.6.5/6 users can see v0.6.6+ without a chain fallthrough.
-    expect(DEFAULT_MANIFEST_URLS.length).toBe(8);
+  it('chain length: 5 (R90) → 7 (R93) → 8 (R103: +R102) → 6 (R249: +ownlocalml, dropped 3 dead)', () => {
+    // R93 added R92 + R90 (5 → 7 entries). R103 added R102 at the head
+    // (7 → 8 entries). R249 added ownlocalml.com at the head AND dropped
+    // the three oldest dead hosts (R78/R81/R85 — documented dead on
+    // 2026-08-09) — net 8 + 1 - 3 = 6 entries. The 6-entry chain is
+    // tight: one stable R2 head, four recent space.minimax.io fallbacks,
+    // one oldest-baked APK host.
+    expect(DEFAULT_MANIFEST_URLS.length).toBe(6);
   });
 });
 
@@ -638,11 +650,14 @@ describe('R93 v0.6.5 — bridge release chain behaviour', () => {
     expect(r.needsUpdate).toBe(false);
     expect(r.manifest?.latest_version).toBe('0.6.5');
   });
-  it('UpdateChecker.check falls through chain when R92 host is down', async () => {
-    // R103 chain: [R102, R92, R90, R88, R87, R85, R81, R78]. R102 +
-    // R92 return 500, R90 returns valid. fetchManifestFromChain must
-    // walk past both failures and surface the R90 URL.
+  it('UpdateChecker.check falls through chain when R249 + R102 + R92 hosts are down', async () => {
+    // R249 chain: [ownlocalml, R102, R92, R90, R88, R87]. ownlocalml +
+    // R102 + R92 return 500, R90 returns valid. fetchManifestFromChain
+    // must walk past all three failures and surface the R90 URL.
     const fetcher = vi.fn(async (url: string) => {
+      if (url.includes('ownlocalml')) {
+        return new Response('boom', { status: 500 });
+      }
       if (url.includes('ncfosklh79sxf')) {
         return new Response('boom', { status: 500 });
       }
@@ -658,19 +673,21 @@ describe('R93 v0.6.5 — bridge release chain behaviour', () => {
       fetcher: fetcher as unknown as typeof fetch,
     });
     expect(r.url).toContain('ad67rp710vsl7');
-    expect(r.attempts.length).toBe(2);
-    expect(r.attempts[0].url).toContain('ncfosklh79sxf');
+    expect(r.attempts.length).toBe(3);
+    expect(r.attempts[0].url).toContain('ownlocalml');
     expect(r.attempts[0].error).toMatch(/HTTP 500/);
-    expect(r.attempts[1].url).toContain('yv5eeknt6h6sa');
+    expect(r.attempts[1].url).toContain('ncfosklh79sxf');
     expect(r.attempts[1].error).toMatch(/HTTP 500/);
+    expect(r.attempts[2].url).toContain('yv5eeknt6h6sa');
+    expect(r.attempts[2].error).toMatch(/HTTP 500/);
   });
-  it('R103 env override precedes the R102 head (custom host beats R102)', () => {
+  it('R249 env override precedes the ownlocalml head (custom host beats R2)', () => {
     const urls = resolveManifestUrls({
       VITE_UPDATE_MANIFEST_URL: 'https://github-raw.example.com/m.json',
     });
     expect(urls[0]).toBe('https://github-raw.example.com/m.json');
-    expect(urls[1]).toContain('ncfosklh79sxf');
-    expect(urls.length).toBe(9); // 1 env + 8 default
+    expect(urls[1]).toContain('ownlocalml');
+    expect(urls.length).toBe(7); // 1 env + 6 default
   });
   it('compareVersions: 0.6.5 > 0.6.4 (numeric, not lex)', () => {
     expect(compareVersions('0.6.5', '0.6.4')).toBeGreaterThan(0);
@@ -686,17 +703,19 @@ describe('R93 v0.6.5 — bridge release chain behaviour', () => {
   it('compareVersions: leading-v "v0.6.5" == "0.6.5"', () => {
     expect(compareVersions('v0.6.5', '0.6.5')).toBe(0);
   });
-  it('R93 chain preserves all R90 hosts (no rotation removed)', () => {
-    // Sanity: every host that was in the R90 chain still appears in R93.
-    const r93hosts = DEFAULT_MANIFEST_URLS;
+  it('R249 chain preserves the 5 still-live R90/R93/R103 hosts (no live host removed)', () => {
+    // Sanity: every host that was still-live in R103 (R102 + R92 + R90
+    // + R88 + R87) appears in R249. The 3 dropped hosts (R78/R81/R85)
+    // are covered by the absence test below.
+    const r249hosts = DEFAULT_MANIFEST_URLS;
     for (const host of [
-      '32dhrw35m4x2v', // R88
+      'ncfosklh79sxf', // R102 (v0.6.6)
+      'yv5eeknt6h6sa', // R92 (v0.6.5)
+      'ad67rp710vsl7', // R90 (v0.6.4)
+      '32dhrw35m4x2v', // R88 (v0.6.3)
       'hrkbksh0x0xz4', // R87
-      'cq9a31txpromd', // R85
-      '813khigmhk9k8', // R81
-      'fy150e36f93n8', // R78
     ]) {
-      expect(r93hosts.some((u) => u.includes(host))).toBe(true);
+      expect(r249hosts.some((u) => u.includes(host))).toBe(true);
     }
   });
   it('v0.6.5 sideload scenario: chain returns v0.6.5 manifest URL in manifestUrl', async () => {
@@ -722,9 +741,9 @@ describe('R93 v0.6.5 — bridge release chain behaviour', () => {
     expect(r.manifestUrl).toContain('yv5eeknt6h6sa');
     expect(r.manifest?.latest_version).toBe('0.6.5');
   });
-  it('R93 chain dedup: identical URLs collapse to one entry', () => {
+  it('R249 chain dedup: identical URLs collapse to one entry', () => {
     // Defensive: if someone accidentally pastes the same host twice in
-    // DEFAULT_MANIFEST_URLS, the test pins the count to 7 (i.e. no dups).
+    // DEFAULT_MANIFEST_URLS, the test pins the count to 6 (i.e. no dups).
     // If a future PR adds a duplicate, this test fails and the PR is
     // forced to either dedup or update the expected length.
     const seen = new Set<string>();
@@ -734,7 +753,7 @@ describe('R93 v0.6.5 — bridge release chain behaviour', () => {
     }
     expect(seen.size).toBe(DEFAULT_MANIFEST_URLS.length);
   });
-  it('R93 chain hosts are valid HTTPS URLs (no http://, no path-less)', () => {
+  it('R249 chain hosts are valid HTTPS URLs (no http://, no path-less)', () => {
     for (const u of DEFAULT_MANIFEST_URLS) {
       expect(u.startsWith('https://')).toBe(true);
       expect(u).toContain('/updates/android.json');
@@ -753,64 +772,73 @@ describe('R93 v0.6.5 — bridge release chain behaviour', () => {
   });
 });
 
-describe('R103 v0.6.6 — chain extension so v0.6.5/6 users auto-update', () => {
-  it('R103 chain head is the R102 (ncfosklh79sxf) public-deploy host', () => {
-    // The whole point of R103: v0.6.6 was deployed at ncfosklh79sxf,
-    // so the chain must start there or v0.6.5/6 users will keep
-    // polling R92 (v0.6.5) and report "you're up to date" until a
-    // future R10x explicitly re-extends.
+describe('R249 ownlocalml.com — stable R2 + Worker host at chain head', () => {
+  it('R249 chain head is the ownlocalml.com stable host', () => {
+    // The whole point of R249: ownlocalml.com is Roman's long-term
+    // stable Cloudflare R2 + Worker host. The chain must start there
+    // so v0.6.7+ users see the canonical manifest regardless of
+    // which space.minimax.io deploy they happened to land on.
     const urls = resolveManifestUrls(null);
-    expect(urls[0]).toBe('https://ncfosklh79sxf.space.minimax.io/updates/android.json');
+    expect(urls[0]).toBe('https://ownlocalml.com/updates/android.json');
   });
-  it('R103 chain preserves every R90/R93 host (no rotation removed)', () => {
-    // Regression guard: extending the chain must never silently drop
-    // an older host. If a future PR removes one, this test fails.
+  it('R249 chain preserves the 5 still-live hosts from R103 (no silent drop)', () => {
+    // Regression guard: extending the chain at R249 dropped only the
+    // 3 hosts documented dead as of 2026-08-09 (R78/R81/R85). The
+    // 5 still-live hosts from R103 must remain in the chain.
     const chain = DEFAULT_MANIFEST_URLS;
     for (const host of [
-      'ncfosklh79sxf', // R102 (v0.6.6) — added in R103
+      'ncfosklh79sxf', // R102 (v0.6.6)
       'yv5eeknt6h6sa', // R92 (v0.6.5)
       'ad67rp710vsl7', // R90 (v0.6.4)
       '32dhrw35m4x2v', // R88 (v0.6.3)
       'hrkbksh0x0xz4', // R87
-      'cq9a31txpromd', // R85
-      '813khigmhk9k8', // R81
-      'fy150e36f93n8', // R78
     ]) {
       expect(chain.some((u) => u.includes(host))).toBe(true);
     }
   });
-  it('R103 chain ordering: R102 before R92, R92 before R90, ... R78 last', () => {
-    // Most-recent first; oldest last. The v0.6.5 user sees the v0.6.6
-    // manifest in one round-trip (no fallthrough) when R102 is up.
+  it('R249 chain drops the 3 dead hosts (R78/R81/R85) — verified by absence', () => {
+    // Companion guard to the previous test: the three documented-dead
+    // hosts must NOT appear in the R249 chain. If a future PR adds
+    // them back, this test fails and forces a justification.
+    const chain = DEFAULT_MANIFEST_URLS;
+    for (const host of [
+      'cq9a31txpromd', // R85 — dead 2026-08-09
+      '813khigmhk9k8', // R81 — dead 2026-08-09
+      'fy150e36f93n8', // R78 — dead 2026-08-09
+    ]) {
+      expect(chain.some((u) => u.includes(host))).toBe(false);
+    }
+  });
+  it('R249 chain ordering: ownlocalml → R102 → R92 → R90 → R88 → R87', () => {
+    // Most-recent first; oldest still-live last. The v0.6.7 user sees
+    // the canonical manifest in one round-trip when ownlocalml is up.
     const chain = DEFAULT_MANIFEST_URLS;
     const order = [
+      'ownlocalml.com', // R249 (stable R2 + Worker)
       'ncfosklh79sxf', // R102
       'yv5eeknt6h6sa', // R92
       'ad67rp710vsl7', // R90
       '32dhrw35m4x2v', // R88
       'hrkbksh0x0xz4', // R87
-      'cq9a31txpromd', // R85
-      '813khigmhk9k8', // R81
-      'fy150e36f93n8', // R78
     ];
     for (let i = 0; i < order.length; i++) {
       expect(chain[i]).toContain(order[i]);
     }
   });
-  it('R103 env override precedes the R102 head, R102 still at index 1', () => {
+  it('R249 env override precedes the ownlocalml head, ownlocalml still at index 1', () => {
     const urls = resolveManifestUrls({
       VITE_UPDATE_MANIFEST_URL: 'https://github-raw.example.com/m.json',
     });
     expect(urls[0]).toBe('https://github-raw.example.com/m.json');
-    expect(urls[1]).toContain('ncfosklh79sxf');
-    expect(urls.length).toBe(9);
+    expect(urls[1]).toContain('ownlocalml.com');
+    expect(urls.length).toBe(7);
   });
-  it('R103 chain length is 8 (R90=5 → R93=7 → R103=8)', () => {
+  it('R249 chain length is 6 (R90=5 → R93=7 → R103=8 → R249=6)', () => {
     // Pin the length. If someone adds or removes a host without
     // updating this, the test forces them to justify the change.
-    expect(DEFAULT_MANIFEST_URLS.length).toBe(8);
+    expect(DEFAULT_MANIFEST_URLS.length).toBe(6);
   });
-  it('R103 chain dedup: no identical URLs (R102 must not be a copy of R92)', () => {
+  it('R249 chain dedup: no identical URLs (ownlocalml must not be a copy)', () => {
     const seen = new Set<string>();
     for (const u of DEFAULT_MANIFEST_URLS) {
       expect(seen.has(u)).toBe(false);
@@ -818,23 +846,80 @@ describe('R103 v0.6.6 — chain extension so v0.6.5/6 users auto-update', () => 
     }
     expect(seen.size).toBe(DEFAULT_MANIFEST_URLS.length);
   });
-  it('R103 chain hosts are all valid HTTPS manifest URLs', () => {
+  it('R249 chain hosts are all valid HTTPS manifest URLs', () => {
     for (const u of DEFAULT_MANIFEST_URLS) {
       expect(u.startsWith('https://')).toBe(true);
       expect(u).toContain('/updates/android.json');
       expect(u).not.toMatch(/\.space\.minimax\.io\/$/);
     }
   });
-  it('R103 chain: v0.6.6 user on the R102 head sees "up to date"', async () => {
-    // A v0.6.6 user polls the R103 chain. The R102 host (ncfosklh79sxf)
-    // is at the head and serves v0.6.6/16, so the check returns
+  it('R249 chain: v0.6.9 user on the ownlocalml head sees "up to date"', async () => {
+    // A v0.6.9 user polls the R249 chain. The ownlocalml.com host
+    // is at the head and serves v0.6.9/18, so the check returns
     // needsUpdate=false in a single round-trip.
+    const validR249 = {
+      ...validR87,
+      latest_version: '0.6.9',
+      latest_version_code: 18,
+    };
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.includes('ownlocalml')) {
+        return new Response(JSON.stringify(validR249), { status: 200 });
+      }
+      return new Response('boom', { status: 500 });
+    });
+    const localChecker = new UpdateChecker();
+    const r = await localChecker.check({
+      fetcher: fetcher as unknown as typeof fetch,
+      force: true,
+      installedVersion: { version: '0.6.9', versionCode: 18 },
+    });
+    expect(r.needsUpdate).toBe(false);
+    expect(r.forceUpdate).toBe(false);
+    expect(r.manifestUrl).toBe('https://ownlocalml.com/updates/android.json');
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it('R249 chain: v0.6.7 user on the ownlocalml head gets a v0.6.9 update prompt', async () => {
+    // A v0.6.7 user polls the R249 chain. The ownlocalml host is at
+    // the head and serves v0.6.9/18, so the check returns needsUpdate=true
+    // — this is the auto-update path R249 enables.
+    const validR249 = {
+      ...validR87,
+      latest_version: '0.6.9',
+      latest_version_code: 18,
+    };
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.includes('ownlocalml')) {
+        return new Response(JSON.stringify(validR249), { status: 200 });
+      }
+      return new Response('boom', { status: 500 });
+    });
+    const localChecker = new UpdateChecker();
+    const r = await localChecker.check({
+      fetcher: fetcher as unknown as typeof fetch,
+      force: true,
+      installedVersion: { version: '0.6.7', versionCode: 17 },
+    });
+    expect(r.needsUpdate).toBe(true);
+    expect(r.forceUpdate).toBe(false);
+    expect(r.manifest?.latest_version).toBe('0.6.9');
+    expect(r.manifestUrl).toContain('ownlocalml');
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it('R249 chain: ownlocalml down → R102 (v0.6.6) still serves the manifest', async () => {
+    // R249 fallthrough: ownlocalml returns 500, R102 returns the
+    // v0.6.6 manifest. A user on a down R249 R2 deploy still gets
+    // a working update check (just from the older space.minimax.io
+    // host until R2 is restored).
     const validR103 = {
       ...validR87,
       latest_version: '0.6.6',
       latest_version_code: 16,
     };
     const fetcher = vi.fn(async (url: string) => {
+      if (url.includes('ownlocalml')) {
+        return new Response('boom', { status: 500 });
+      }
       if (url.includes('ncfosklh79sxf')) {
         return new Response(JSON.stringify(validR103), { status: 200 });
       }
@@ -847,63 +932,7 @@ describe('R103 v0.6.6 — chain extension so v0.6.5/6 users auto-update', () => 
       installedVersion: { version: '0.6.6', versionCode: 16 },
     });
     expect(r.needsUpdate).toBe(false);
-    expect(r.forceUpdate).toBe(false);
-    expect(r.manifestUrl).toBe('https://ncfosklh79sxf.space.minimax.io/updates/android.json');
-    expect(fetcher).toHaveBeenCalledTimes(1);
-  });
-  it('R103 chain: v0.6.5 user on the R102 head gets a v0.6.6 update prompt', async () => {
-    // A v0.6.5 user polls the R103 chain. The R102 host is at the
-    // head and serves v0.6.6/16, so the check returns needsUpdate=true
-    // — this is the auto-update path R103 exists to enable.
-    const validR103 = {
-      ...validR87,
-      latest_version: '0.6.6',
-      latest_version_code: 16,
-    };
-    const fetcher = vi.fn(async (url: string) => {
-      if (url.includes('ncfosklh79sxf')) {
-        return new Response(JSON.stringify(validR103), { status: 200 });
-      }
-      return new Response('boom', { status: 500 });
-    });
-    const localChecker = new UpdateChecker();
-    const r = await localChecker.check({
-      fetcher: fetcher as unknown as typeof fetch,
-      force: true,
-      installedVersion: { version: '0.6.5', versionCode: 15 },
-    });
-    expect(r.needsUpdate).toBe(true);
-    expect(r.forceUpdate).toBe(false);
-    expect(r.manifest?.latest_version).toBe('0.6.6');
     expect(r.manifestUrl).toContain('ncfosklh79sxf');
-    expect(fetcher).toHaveBeenCalledTimes(1);
-  });
-  it('R103 chain: R102 down → R92 (v0.6.5) still serves the v0.6.5 manifest', async () => {
-    // R103 fallthrough: R102 returns 500, R92 returns the v0.6.5
-    // manifest. A v0.6.5 user on a down R102 still gets a working
-    // update check (just no v0.6.6 yet).
-    const validR93 = {
-      ...validR87,
-      latest_version: '0.6.5',
-      latest_version_code: 15,
-    };
-    const fetcher = vi.fn(async (url: string) => {
-      if (url.includes('ncfosklh79sxf')) {
-        return new Response('boom', { status: 500 });
-      }
-      if (url.includes('yv5eeknt6h6sa')) {
-        return new Response(JSON.stringify(validR93), { status: 200 });
-      }
-      return new Response('boom', { status: 500 });
-    });
-    const localChecker = new UpdateChecker();
-    const r = await localChecker.check({
-      fetcher: fetcher as unknown as typeof fetch,
-      force: true,
-      installedVersion: { version: '0.6.5', versionCode: 15 },
-    });
-    expect(r.needsUpdate).toBe(false);
-    expect(r.manifestUrl).toContain('yv5eeknt6h6sa');
-    expect(r.manifest?.latest_version).toBe('0.6.5');
+    expect(r.manifest?.latest_version).toBe('0.6.6');
   });
 });
