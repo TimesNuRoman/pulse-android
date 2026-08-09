@@ -71,29 +71,42 @@ export const APP_VERSION_CODE = 17;
  * that used `DEFAULT_MANIFEST_URL` directly. v0.6.4+ uses
  * `DEFAULT_MANIFEST_URLS` (the chain). New code should read the chain
  * via `getManifestUrls()` or `resolveManifestUrls(env)`.
+ *
+ * R249: pointed at ownlocalml.com (Roman's Cloudflare R2 + Worker
+ * setup) so the Svelte app has a stable long-term host instead of
+ * rotating space.minimax.io URLs.
  */
 export const DEFAULT_MANIFEST_URL =
-  'https://hrkbksh0x0xz4.space.minimax.io/updates/android.json';
+  'https://ownlocalml.com/updates/android.json';
 
 /**
- * Default manifest URL chain (R90). Each `website_deploy` call creates
- * a new host URL, so the baked-in default for v0.6.3 became orphaned
- * the moment the R88 manifest moved to a new host. v0.6.4+ tries each
- * URL in order and uses the first one that returns a parseable
+ * Default manifest URL chain (R90, refreshed R249). Each `website_deploy`
+ * call creates a new host URL, so the baked-in default for v0.6.3 became
+ * orphaned the moment the R88 manifest moved to a new host. v0.6.4+ tries
+ * each URL in order and uses the first one that returns a parseable
  * manifest. The chain is ordered most-recent first so the common case
  * is one round-trip; older hosts are tried only when the recent ones
  * are unreachable.
  *
- * Source of truth for the host list lives here. If you deploy a new
- * manifest, add the new host at index 0 (most recent) and rotate the
- * list over time. R0## follow-up: a stable host (GitHub raw, S3/R2)
- * is the long-term fix; this chain is the bridge.
+ * R249: ownlocalml.com (Roman's R2 + Worker) is now the stable head of
+ * the chain. The space.minimax.io hosts below are kept as fallbacks for
+ * in-flight devices whose R2 worker deploy is still propagating or for
+ * users behind networks that block Cloudflare. The three oldest
+ * R78/R81/R85 hosts were dropped — they are documented dead as of
+ * 2026-08-09 and keeping them in the chain only delays the fallback
+ * path.
  */
 export const DEFAULT_MANIFEST_URLS: readonly string[] = [
-  // R102 (v0.6.6 — current public deploy; this is the head so v0.6.5/6
-  // users see v0.6.6+ without waiting for a fallback. R102's host is
-  // the actual `website_deploy` URL for the v0.6.6 release — R95a /
-  // R97-HOTFIX canonicals are documented separately in pulse-landing's
+  // R249 (ownlocalml.com — the stable Cloudflare R2 + Worker host.
+  // Manifest lives at /updates/android.json, APK at /downloads/.
+  // Roman deployed the R2 binding on 2026-08-09 and verified 200 on
+  // /updates/android.json + /downloads/pulse-notes-0.6.9.apk.
+  // This is the long-term stable host the R90 chain was bridging to.)
+  'https://ownlocalml.com/updates/android.json',
+  // R102 (v0.6.6 — public deploy; kept as fallback for in-flight devices
+  // and networks that block Cloudflare. R102's host is the actual
+  // `website_deploy` URL for the v0.6.6 release — R95a / R97-HOTFIX
+  // canonicals are documented separately in pulse-landing's
   // astro.config.mjs but the on-device chain follows the public deploy).
   'https://ncfosklh79sxf.space.minimax.io/updates/android.json',
   // R92 (v0.6.5 — bridge entry that lets v0.6.5+ devices auto-update
@@ -105,12 +118,8 @@ export const DEFAULT_MANIFEST_URLS: readonly string[] = [
   'https://32dhrw35m4x2v.space.minimax.io/updates/android.json',
   // R87 (the host baked into the v0.6.3 APK — kept for one more release).
   'https://hrkbksh0x0xz4.space.minimax.io/updates/android.json',
-  // R85 (v0.6.1 era).
-  'https://cq9a31txpromd.space.minimax.io/updates/android.json',
-  // R81 canonical (v0.6.1).
-  'https://813khigmhk9k8.space.minimax.io/updates/android.json',
-  // R78 canonical (v0.6.0 — oldest still-live).
-  'https://fy150e36f93n8.space.minimax.io/updates/android.json',
+  // (R78/R81/R85 dropped at R249: hosts documented as dead since
+  // 2026-08-09. Removed to keep the fallback path tight.)
 ];
 
 /** 24h between remote checks. */
