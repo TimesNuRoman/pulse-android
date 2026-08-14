@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pulse logo used by SplashScreen API (Android 12+) and as a fallback in older devices. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:strokeColor="#bb9af7"
+        android:strokeWidth="2.2"
+        android:fillColor="#00000000"
+        android:pathData="M54,24 a30,30 0 1,1 0,60 a30,30 0 1,1 0,-60" />
+    <path
+        android:strokeColor="#bb9af7"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M30,54 Q40,38 50,54 T70,54 T84,54" />
+    <path
+        android:fillColor="#7aa2f7"
+        android:pathData="M82,50 a3.5,3.5 0 1,1 0,7 a3.5,3.5 0 1,1 0,-7" />
+</vector>

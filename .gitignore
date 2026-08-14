@@ -1,0 +1,42 @@
+# Gradle
+.gradle/
+build/
+out/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+local.properties
+captures/
+.externalNativeBuild
+.cxx
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+# Kotlin
+.kotlin/
+
+# Generated
+**/generated/
+**/BuildConfig.java
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Keystores (never commit)
+*.jks
+*.keystore
+release.keystore
+
+# Models (downloaded separately, can be large)
+models/
+*.gguf

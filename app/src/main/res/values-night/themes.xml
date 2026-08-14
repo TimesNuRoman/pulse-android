@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Same dark theme. v1 ships dark-only by design (per design rules).
+  Keeping night-mode values here so a future light theme is a separate values/ file.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.Pulse" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@color/pulse_bg</item>
+        <item name="android:colorBackground">@color/pulse_bg</item>
+        <item name="android:statusBarColor">@color/pulse_status_bar</item>
+        <item name="android:navigationBarColor">@color/pulse_nav_bar</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:enforceNavigationBarContrast" tools:targetApi="29">false</item>
+        <item name="android:enforceStatusBarContrast" tools:targetApi="29">false</item>
+        <item name="colorPrimary">@color/pulse_primary</item>
+        <item name="colorPrimaryDark">@color/pulse_bg_2</item>
+        <item name="colorAccent">@color/pulse_primary</item>
+        <item name="android:textColorPrimary">@color/pulse_text</item>
+        <item name="android:textColorSecondary">@color/pulse_text_muted</item>
+    </style>
+
+    <style name="Theme.Pulse.Splash" parent="Theme.Pulse">
+        <item name="android:windowBackground">@color/pulse_splash_bg</item>
+        <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/pulse_splash_bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/ic_splash</item>
+        <item name="postSplashScreenTheme">@style/Theme.Pulse</item>
+    </style>
+</resources>

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Pulse — Tokyo Night palette.
+  Mirrors the design preview at android-tmp/index.html and the landing site tokens.
+  Used by splash theme + native components (status bar tint, etc).
+  All UI rendering uses Compose Color.kt tokens, this file is for system surfaces.
+-->
+<resources>
+    <!-- Backgrounds -->
+    <color name="pulse_bg">#1a1b26</color>
+    <color name="pulse_bg_2">#16171f</color>
+    <color name="pulse_surface">#1f2335</color>
+    <color name="pulse_surface_2">#24283b</color>
+
+    <!-- Text -->
+    <color name="pulse_text">#c0caf5</color>
+    <color name="pulse_text_muted">#9aa5ce</color>
+    <color name="pulse_text_dim">#565f89</color>
+
+    <!-- Accents -->
+    <color name="pulse_primary">#bb9af7</color>
+    <color name="pulse_primary_2">#9d7cd8</color>
+    <color name="pulse_on_primary">#1a1525</color>
+    <color name="pulse_accent">#7aa2f7</color>
+
+    <!-- Status -->
+    <color name="pulse_green">#9ece6a</color>
+    <color name="pulse_red">#f7768e</color>
+    <color name="pulse_yellow">#e0af68</color>
+
+    <!-- System bar tints (status bar = bg, nav bar = bg_2) -->
+    <color name="pulse_status_bar">#1a1b26</color>
+    <color name="pulse_nav_bar">#16171f</color>
+
+    <!-- Splash background (matches status bar) -->
+    <color name="pulse_splash_bg">#1a1b26</color>
+</resources>

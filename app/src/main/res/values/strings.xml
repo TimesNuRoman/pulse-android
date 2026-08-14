@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Pulse</string>
+
+    <!-- Bottom nav -->
+    <string name="nav_notes">Notes</string>
+    <string name="nav_chat">Chat</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Onboarding -->
+    <string name="onb_card1_title">Notes that link to each other</string>
+    <string name="onb_card1_body">Type [[ to link any note. Pulse builds a graph of your ideas, automatically.</string>
+    <string name="onb_card2_title">Talk to your notes</string>
+    <string name="onb_card2_body">Hold the mic, speak, release. Pulse runs speech-to-text locally — no cloud STT.</string>
+    <string name="onb_card3_title">Sync across your devices</string>
+    <string name="onb_card3_body">End-to-end encrypted. Your password is the encryption key. We can\'t read your notes — even if we wanted to.</string>
+    <string name="onb_card3_badge">PRO</string>
+    <string name="onb_get_started">Get started</string>
+    <string name="onb_next">Next →</string>
+    <string name="onb_skip">Skip</string>
+    <string name="onb_back">Back</string>
+
+    <!-- Notes list -->
+    <string name="notes_search_hint">Search notes…</string>
+    <string name="notes_section_pinned">Pinned</string>
+    <string name="notes_section_recent">Recent</string>
+    <string name="notes_empty_title">No notes yet</string>
+    <string name="notes_empty_body">Tap + to create your first note</string>
+    <string name="notes_fab_new">New note</string>
+    <string name="notes_backlinks_fmt">%1$d backlinks</string>
+    <string name="notes_meta_fmt">%1$s · %2$s</string>
+
+    <!-- Note editor -->
+    <string name="editor_untitled">Untitled</string>
+    <string name="editor_title_hint">Title</string>
+    <string name="editor_body_hint">Start writing…</string>
+    <string name="editor_backlinks_head_fmt">Linked from %1$d notes</string>
+    <string name="editor_see_all_fmt">See all (%1$d) →</string>
+    <string name="editor_menu_insert_link">Insert [[link]]</string>
+    <string name="editor_menu_add_checkbox">Add checkbox</string>
+    <string name="editor_menu_export">Export</string>
+    <string name="editor_menu_delete">Delete</string>
+    <string name="editor_delete_confirm">Delete this note?</string>
+    <string name="editor_delete_confirm_body">This cannot be undone.</string>
+    <string name="editor_delete_ok">Delete</string>
+    <string name="editor_delete_cancel">Cancel</string>
+    <string name="editor_undo">Undo</string>
+
+    <!-- Autocomplete -->
+    <string name="ac_create_new_fmt">Create new note: \'%1$s\'</string>
+
+    <!-- Chat -->
+    <string name="chat_composer_hint">Ask anything…</string>
+    <string name="chat_empty_title">Ask anything about your notes</string>
+    <string name="chat_suggestion_summarise">Summarise my notes</string>
+    <string name="chat_suggestion_about_x">What did I write about %1$s?</string>
+    <string name="chat_suggestion_backlinks">Find backlinks to %1$s</string>
+    <string name="chat_model_connected_fmt">%1$s · connected</string>
+    <string name="chat_history">History</string>
+    <string name="chat_new_chat">New chat</string>
+    <string name="chat_clear_history">Clear history</string>
+    <string name="chat_model_picker">Model</string>
+
+    <!-- Voice -->
+    <string name="voice_title">Voice input</string>
+    <string name="voice_hold_hint">Hold the mic, speak, release</string>
+    <string name="voice_privacy">Speech is transcribed <b>locally</b></string>
+    <string name="voice_idle">Hold the mic to start</string>
+    <string name="voice_listening">Listening…</string>
+    <string name="voice_transcribing">Transcribing…</string>
+    <string name="voice_error">Couldn\'t recognize speech. Try again.</string>
+    <string name="voice_retry">Retry</string>
+    <string name="voice_cancel">Cancel</string>
+
+    <!-- Search -->
+    <string name="search_title">Search</string>
+    <string name="search_input_hint">Type to search…</string>
+    <string name="search_results_fmt">%1$d results</string>
+    <string name="search_empty_query">Type to search across notes</string>
+    <string name="search_no_results_fmt">No notes match \'%1$s\'</string>
+    <string name="search_no_results_hint">Try a shorter query</string>
+    <string name="search_clear">Clear</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_sync">Sync</string>
+    <string name="settings_sync_on">Sync is on</string>
+    <string name="settings_sync_meta_fmt">%1$d devices · last sync %2$s</string>
+    <string name="settings_pro">PRO · Annual</string>
+    <string name="settings_pro_meta">renews %1$s</string>
+    <string name="settings_section_app">App</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_value">Dark · Tokyo Night</string>
+    <string name="settings_voice">Voice input</string>
+    <string name="settings_voice_meta">STT · local · on</string>
+    <string name="settings_editor_font">Editor font</string>
+    <string name="settings_editor_font_value">JetBrains Mono</string>
+    <string name="settings_editor_size">Editor text size</string>
+    <string name="settings_editor_size_value">Medium</string>
+    <string name="settings_section_account">Account</string>
+    <string name="settings_account_meta">Manage profile in web</string>
+    <string name="settings_section_about">About</string>
+    <string name="settings_version">Version</string>
+    <string name="settings_version_value_fmt">v%1$s</string>
+    <string name="settings_source">Source</string>
+    <string name="settings_source_meta">Release notes</string>
+
+    <!-- Common -->
+    <string name="ok">OK</string>
+    <string name="cancel">Cancel</string>
+    <string name="close">Close</string>
+    <string name="loading">Loading…</string>
+    <string name="back">Back</string>
+    <string name="more">More</string>
+    <string name="error_generic">Something went wrong</string>
+
+    <!-- Auth: welcome -->
+    <string name="auth_welcome_sub">Local-first notes and AI chat. Your data stays on your device, end-to-end encrypted.</string>
+    <string name="auth_welcome_create">Create account</string>
+    <string name="auth_welcome_have_one">I already have one</string>
+
+    <!-- Auth: login -->
+    <string name="auth_login_title">Log in</string>
+    <string name="auth_login_help">Help</string>
+    <string name="auth_login_welcome_back">Welcome back</string>
+    <string name="auth_login_sub">Sign in to sync your notes and unlock cross-device.</string>
+    <string name="auth_login_email">Email</string>
+    <string name="auth_login_password">Password</string>
+    <string name="auth_login_forgot">Forgot password?</string>
+    <string name="auth_login_cta">Log in</string>
+    <string name="auth_login_trust">Your password is the key. Notes are encrypted on this device before sync. We can\'t read them.</string>
+    <string name="auth_login_no_account">No account? </string>
+    <string name="auth_login_create">Create one →</string>
+
+    <!-- Auth: signup -->
+    <string name="auth_signup_title">Create account</string>
+    <string name="auth_signup_headline">Create your account</string>
+    <string name="auth_signup_sub">Free forever — 100 messages a day, 50 notes. No card required.</string>
+    <string name="auth_signup_name">Name</string>
+    <string name="auth_signup_email">Email</string>
+    <string name="auth_signup_password">Password</string>
+    <string name="auth_signup_terms">I\'m OK with the Terms and Privacy. No telemetry, ever.</string>
+    <string name="auth_signup_cta">Create account</string>
+    <string name="auth_signup_have_account">Already have an account? </string>
+    <string name="auth_signup_login">Log in →</string>
+
+    <!-- Auth: verify -->
+    <string name="auth_verify_title">Verify email</string>
+    <string name="auth_verify_close">Close</string>
+    <string name="auth_verify_headline">Check your email</string>
+    <string name="auth_verify_sub_1">We sent a verification link to</string>
+    <string name="auth_verify_sub_2">Click it within 24 hours to activate.</string>
+    <string name="auth_verify_open_email">Open email app</string>
+    <string name="auth_verify_resend">Resend</string>
+    <string name="auth_verify_resent">Sent ✓</string>
+    <string name="auth_verify_tip">Tip: if it doesn\'t arrive in 5 minutes, check your spam folder. The link expires after 24 hours.</string>
+
+    <!-- Auth: forgot -->
+    <string name="auth_forgot_title">Reset password</string>
+    <string name="auth_forgot_back_link">← Back to log in</string>
+    <string name="auth_forgot_headline">Forgot your password?</string>
+    <string name="auth_forgot_sub">Enter the email on your account. We\'ll send a reset link.</string>
+    <string name="auth_forgot_email">Email</string>
+    <string name="auth_forgot_cta">Send reset link</string>
+    <string name="auth_forgot_trust">If your email matches an account, a reset link is on its way. We don\'t reveal whether the email is registered.</string>
+    <string name="auth_forgot_no_account">No account? </string>
+    <string name="auth_forgot_create">Create one →</string>
+
+    <!-- Auth: reset -->
+    <string name="auth_reset_title">Reset password</string>
+    <string name="auth_reset_headline">Set a new password</string>
+    <string name="auth_reset_sub">Pick something strong. Your other sessions will be signed out.</string>
+    <string name="auth_reset_password">New password</string>
+    <string name="auth_reset_cta">Reset password</string>
+
+    <!-- Chat AI (PRO features) -->
+    <string name="chat_model_auto">Auto</string>
+    <string name="chat_model_local">Local · 4B</string>
+    <string name="chat_model_8b">Cloud · 8B</string>
+    <string name="chat_model_70b">Cloud · 70B (PRO)</string>
+    <string name="chat_status_connected">connected</string>
+    <string name="chat_status_offline">offline</string>
+    <string name="chat_usage_fmt">%1$s / %2$s today</string>
+    <string name="chat_banner_pro_required">Cloud AI is PRO. Local models will be available soon.</string>
+    <string name="chat_banner_pro_expired">Your PRO license has expired. Sign in again to renew.</string>
+    <string name="chat_banner_local_unavailable">Local model isn\'t loaded yet. Open Settings → Model to download.</string>
+    <string name="chat_banner_signin">Sign in</string>
+    <string name="chat_banner_open_settings">Open Settings</string>
+    <string name="chat_banner_dismiss">Dismiss</string>
+    <string name="chat_empty_pro_sub">PRO · cloud models + your local notes.</string>
+    <string name="chat_empty_free_sub">AI responses stay on your device. Cloud models available with PRO.</string>
+    <string name="chat_hotkey_hint">Cmd+K to focus</string>
+    <string name="chat_error_pro_required">Cloud AI is a PRO feature.</string>
+    <string name="chat_error_rate_limited">Daily limit reached. Try again tomorrow or upgrade to PRO.</string>
+    <string name="chat_error_network">Network error. AI requires connection.</string>
+    <string name="chat_suggestion_pulse">What did I write about Pulse?</string>
+    <string name="chat_suggestion_plan">Make a plan for next week</string>
+</resources>

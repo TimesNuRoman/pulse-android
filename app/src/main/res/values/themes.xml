@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Pulse — themes.xml
+  System-level themes only. Compose drives the actual UI.
+  v1 is dark only; the night-mode qualifier holds the same values.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Base application theme (used by Activity before Compose attaches). -->
+    <style name="Theme.Pulse" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/pulse_bg</item>
+        <item name="android:colorBackground">@color/pulse_bg</item>
+        <item name="android:statusBarColor">@color/pulse_status_bar</item>
+        <item name="android:navigationBarColor">@color/pulse_nav_bar</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:enforceNavigationBarContrast" tools:targetApi="29">false</item>
+        <item name="android:enforceStatusBarContrast" tools:targetApi="29">false</item>
+        <item name="colorPrimary">@color/pulse_primary</item>
+        <item name="colorPrimaryDark">@color/pulse_bg_2</item>
+        <item name="colorAccent">@color/pulse_primary</item>
+        <item name="android:textColorPrimary">@color/pulse_text</item>
+        <item name="android:textColorSecondary">@color/pulse_text_muted</item>
+    </style>
+
+    <!-- Splash theme. Used by Activity until Compose paints. -->
+    <style name="Theme.Pulse.Splash" parent="Theme.Pulse">
+        <item name="android:windowBackground">@color/pulse_splash_bg</item>
+        <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/pulse_splash_bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/ic_splash</item>
+        <item name="postSplashScreenTheme">@style/Theme.Pulse</item>
+    </style>
+</resources>
