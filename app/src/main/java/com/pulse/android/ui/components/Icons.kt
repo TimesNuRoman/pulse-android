@@ -29,6 +29,7 @@ import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.MicNone
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material.icons.outlined.Settings
@@ -63,6 +64,7 @@ object Icons {
     val Link: ImageVector = Icons.Outlined.Link
     val Info: ImageVector = Icons.Outlined.Info
     val GitHub: ImageVector = Icons.Outlined.Tag
+    val Public: ImageVector = Icons.Outlined.Public
 
     // Chat / voice
     val Mic: ImageVector = Icons.Outlined.Mic

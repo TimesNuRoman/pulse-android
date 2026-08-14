@@ -155,6 +155,8 @@ fun ChatScreen(
                 generating = state.isGenerating,
                 onStop = vm::stop,
                 focusRequester = composerFocus,
+                webSearchOn = state.webSearchOn,
+                onToggleWeb = vm::toggleWebSearch,
             )
         }
     }
@@ -423,6 +425,8 @@ private fun Composer(
     generating: Boolean,
     onStop: () -> Unit,
     focusRequester: FocusRequester? = null,
+    webSearchOn: Boolean = false,
+    onToggleWeb: (Boolean) -> Unit = {},
 ) {
     Row(
         modifier = Modifier
@@ -434,6 +438,13 @@ private fun Composer(
     ) {
         IconButton(onClick = onMic) {
             Icon(imageVector = Icons.Mic, contentDescription = "Voice", tint = PulseTextMuted)
+        }
+        IconButton(onClick = { onToggleWeb(!webSearchOn) }) {
+            Icon(
+                imageVector = Icons.Public,
+                contentDescription = "Web search",
+                tint = if (webSearchOn) PulsePrimary else PulseTextMuted,
+            )
         }
         TextField(
             value = input,

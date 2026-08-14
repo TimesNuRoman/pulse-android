@@ -26,6 +26,7 @@ import com.pulse.android.data.model.ChatMessage
 import com.pulse.android.data.repo.ChatRepository
 import com.pulse.android.data.repo.NoteRepository
 import com.pulse.android.data.skills.SkillRepository
+import com.pulse.android.data.web.WebSearch
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -64,6 +65,7 @@ data class ChatUiState(
     val availableModels: List<ModelInfo> = emptyList(),
     val licenseBanner: LicenseBanner? = null,
     val transientError: String? = null,
+    val webSearchOn: Boolean = false,
 )
 
 /**
@@ -85,6 +87,7 @@ class ChatViewModel @Inject constructor(
     private val authRepo: AuthRepository,
     private val licenseRepo: LicenseRepository,
     private val skillRepo: SkillRepository,
+    private val webSearch: WebSearch,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ChatUiState())
@@ -171,6 +174,8 @@ class ChatViewModel @Inject constructor(
 
     fun consumeError() { _state.update { it.copy(transientError = null) } }
 
+    fun toggleWebSearch(on: Boolean) { _state.update { it.copy(webSearchOn = on) } }
+
     /**
      * Resolve the "auto" sentinel to a concrete model given current license + native state.
      */
@@ -220,11 +225,19 @@ class ChatViewModel @Inject constructor(
             }
             val skillsCtx = triggered.joinToString("\n\n") { "--- ${it.name} ---\n${it.body}" }
 
+            // Web search (optional): when toggle is on, run a DDG search and
+            // append the snippet context. Skipped if toggle is off.
+            val webCtx = if (_state.value.webSearchOn) {
+                val results = webSearch.search(userText)
+                if (results.isNotEmpty()) webSearch.formatForLlm(results, userText) else ""
+            } else ""
+
             val sysPrompt = buildString {
                 append("You are Pulse, a local assistant that answers questions about the user's notes. ")
                 append("If the answer is in the notes, cite them as [[Note Title]]. Be concise.\n\n")
                 if (ctx.isNotBlank()) append("Notes context:\n$ctx\n\n")
-                if (skillsCtx.isNotBlank()) append("Skills context:\n$skillsCtx\n")
+                if (skillsCtx.isNotBlank()) append("Skills context:\n$skillsCtx\n\n")
+                if (webCtx.isNotBlank()) append("Web search:\n$webCtx\n")
             }
 
             // Persist empty assistant msg
