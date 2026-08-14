@@ -26,6 +26,8 @@ import com.pulse.android.data.model.ChatMessage
 import com.pulse.android.data.repo.ChatRepository
 import com.pulse.android.data.repo.NoteRepository
 import com.pulse.android.data.skills.SkillRepository
+import com.pulse.android.data.update.UpdateChecker
+import com.pulse.android.data.update.UpdateStatus
 import com.pulse.android.data.web.WebSearch
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -66,6 +68,7 @@ data class ChatUiState(
     val licenseBanner: LicenseBanner? = null,
     val transientError: String? = null,
     val webSearchOn: Boolean = false,
+    val updateStatus: UpdateStatus = UpdateStatus.Idle,
 )
 
 /**
@@ -88,6 +91,7 @@ class ChatViewModel @Inject constructor(
     private val licenseRepo: LicenseRepository,
     private val skillRepo: SkillRepository,
     private val webSearch: WebSearch,
+    private val updateChecker: UpdateChecker,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ChatUiState())
@@ -135,6 +139,18 @@ class ChatViewModel @Inject constructor(
                 }
             }
         }
+        // Update check: poll the JSON manifest 5s after init, expose
+        // status so the topbar can render the update pill.
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(5_000)
+            _state.update { it.copy(updateStatus = UpdateStatus.Checking) }
+            _state.update { it.copy(updateStatus = updateChecker.check()) }
+        }
+    }
+
+    fun openUpdate() {
+        val info = (_state.value.updateStatus as? UpdateStatus.Available)?.info ?: return
+        updateChecker.openDownload(info.url)
     }
 
     fun setInput(s: String) { _state.update { it.copy(input = s) } }

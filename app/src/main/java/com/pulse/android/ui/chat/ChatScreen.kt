@@ -64,6 +64,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -120,6 +121,13 @@ fun ChatScreen(
                 availableModels = state.availableModels,
                 onMenu = { vm.newChat() },
             )
+            val updateStatus = state.updateStatus
+            if (updateStatus is com.pulse.android.data.update.UpdateStatus.Available) {
+                UpdateBannerRow(
+                    info = updateStatus.info,
+                    onClick = { vm.openUpdate() },
+                )
+            }
             if (state.licenseBanner != null) {
                 LicenseBannerRow(
                     banner = state.licenseBanner!!,
@@ -328,6 +336,39 @@ private fun LicenseBannerRow(
             modifier = Modifier
                 .clickable { onDismiss() }
                 .padding(horizontal = 4.dp, vertical = 2.dp),
+        )
+    }
+}
+
+@Composable
+private fun UpdateBannerRow(
+    info: com.pulse.android.data.update.UpdateInfo,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(PulseSurface2)
+            .border(1.dp, PulsePrimary)
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "v${info.version} available",
+            color = PulsePrimary,
+            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.weight(1f),
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = "Download",
+            color = PulseBg,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier
+                .background(PulsePrimary)
+                .padding(horizontal = 10.dp, vertical = 4.dp),
         )
     }
 }
