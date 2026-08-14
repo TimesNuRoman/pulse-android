@@ -1,20 +1,15 @@
-# Pulse LLM — CMakeLists
+# Pulse native libraries — CMakeLists
 #
-# Builds the `pulse_llm` shared library that Pulse's Kotlin `LlamaEngine` loads.
-# The default config produces a **stub** library that exposes the same JNI surface
-# as the real backend, so the Android app builds, links, and runs end-to-end
-# (with `isNativeReady == true` and a placeholder token stream).
+# Builds TWO shared libraries:
+#   1. `pulse_llm`   — Kotlin LlamaEngine.kt, real llama.cpp b9442
+#   2. `pulse_whisper` — Kotlin WhisperNative.kt, real whisper.cpp v1.8.4
 #
-# To wire in real llama.cpp (v0.2.0-rc-jni):
-#   1. Vendor the llama.cpp source tree under `app/src/main/cpp/llama.cpp/`
-#      (we vendor b9442 from https://github.com/ggml-org/llama.cpp).
-#   2. Build with `-DPULSE_LLM_STUB=0` (the gradle default for debug+release).
-#   3. Native side: stub JNI surface stays, but nativeGenerate now calls
-#      llama_decode / llama_sampler_sample in a loop.
+# Each library has its own private copy of ggml with different APIs
+# (llama.cpp's ggml 0.9.4 vs whisper.cpp's ggml 0.10+). Putting them
+# in separate .so files avoids symbol collisions in the dynamic linker.
 #
-# We list the source files explicitly (no file(GLOB)) to avoid the
-# CONFIGURE_DEPENDS re-configure loop that AGP 8.x can hit on incremental
-# builds. The list is small and stable.
+# We list source files explicitly (no GLOB) to avoid the CONFIGURE_DEPENDS
+# re-configure loop that AGP 8.x can hit on incremental builds.
 #
 # ABI list (arm64-v8a, armeabi-v7a, x86_64) is set in app/build.gradle.kts.
 cmake_minimum_required(VERSION 3.22.1)
@@ -154,4 +149,164 @@ else()
     elseif(CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64")
         # x86_64 uses AVX/AVX2 by default; no extra define needed.
     endif()
+endif()
+
+# ==============================================================================
+# pulse_whisper — real whisper.cpp v1.8.4
+# ==============================================================================
+# Kotlin side loads via `System.loadLibrary("pulse_whisper")` from
+# com.pulse.android.data.voice.WhisperNative.
+#
+# whisper.cpp brings its own private ggml (newer than llama.cpp's); we
+# build it as a private object library so it doesn't conflict with
+# pulse_llm's ggml. Source list is explicit (no GLOB) for AGP stability.
+
+set(WHISPER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/whisper.cpp")
+set(WHISPER_NATIVE_BRIDGE "whisper-jni.cpp")
+
+# Build whisper.cpp + its bundled ggml as private OBJECT libraries so
+# they end up linked into pulse_whisper.so (not as a separate shared lib).
+add_library(whisper_core OBJECT
+    ${WHISPER_DIR}/src/whisper.cpp
+)
+
+add_library(whisper_ggml_core OBJECT
+    # ggml core (C sources, must compile with C compiler)
+    # ggml-quants.c provides the legacy quantize_q*_impl functions
+    # (quantize_q4_0, quantize_mxfp4, iq2xs_init_impl, etc.) that ggml.c
+    # calls directly. The arch-specific quants in ggml-cpu/arch/*/quants.c
+    # are gated by ABI below to avoid duplicate symbol collisions with
+    # each other (both arch/arm/quants.c and arch/x86/quants.c define
+    # ggml_vec_dot_q4_0_q8_0 etc. unconditionally).
+    ${WHISPER_DIR}/ggml/src/ggml.c
+    ${WHISPER_DIR}/ggml/src/ggml-alloc.c
+    ${WHISPER_DIR}/ggml/src/ggml-quants.c
+    # ggml core (C++ sources)
+    ${WHISPER_DIR}/ggml/src/ggml-backend.cpp
+    ${WHISPER_DIR}/ggml/src/ggml-backend-dl.cpp
+    ${WHISPER_DIR}/ggml/src/ggml-backend-reg.cpp
+    ${WHISPER_DIR}/ggml/src/ggml-threading.cpp
+    ${WHISPER_DIR}/ggml/src/ggml.cpp
+    ${WHISPER_DIR}/ggml/src/gguf.cpp
+    ${WHISPER_DIR}/ggml/src/ggml-opt.cpp
+)
+
+add_library(whisper_ggml_cpu OBJECT
+    # CPU backend - main
+    ${WHISPER_DIR}/ggml/src/ggml-cpu/ggml-cpu.c
+    ${WHISPER_DIR}/ggml/src/ggml-cpu/ggml-cpu.cpp
+    ${WHISPER_DIR}/ggml/src/ggml-cpu/quants.c
+    ${WHISPER_DIR}/ggml/src/ggml-cpu/repack.cpp
+    ${WHISPER_DIR}/ggml/src/ggml-cpu/traits.cpp
+    ${WHISPER_DIR}/ggml/src/ggml-cpu/binary-ops.cpp
+    ${WHISPER_DIR}/ggml/src/ggml-cpu/unary-ops.cpp
+    ${WHISPER_DIR}/ggml/src/ggml-cpu/vec.cpp
+    ${WHISPER_DIR}/ggml/src/ggml-cpu/ops.cpp
+    # hbm (high-bandwidth memory) - we don't need it on phones but
+    # it's harmless to compile (only used if GGML_USE_CPU_HBM is defined)
+    ${WHISPER_DIR}/ggml/src/ggml-cpu/hbm.cpp
+    # Note: we skip amx/, llamafile/, kleidiai/ — these are server-only
+    # and bloat the .so on phones. They are gated by feature defines
+    # (GGML_USE_AMX, GGML_USE_LLAMAFILE) that we don't set.
+)
+
+# Arch-specific sources. We gate by ABI because arch/arm/quants.c and
+# arch/x86/quants.c both define the same symbols (e.g. ggml_vec_dot_q4_0_q8_0)
+# unconditionally — including both in the same .so causes ld.lld
+# "duplicate symbol" errors. Each ABI gets exactly one arch directory.
+set(WHISPER_CPU_ARCH_SOURCES "")
+if(CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a" OR CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")
+    list(APPEND WHISPER_CPU_ARCH_SOURCES
+        ${WHISPER_DIR}/ggml/src/ggml-cpu/arch/arm/quants.c
+        ${WHISPER_DIR}/ggml/src/ggml-cpu/arch/arm/repack.cpp
+        ${WHISPER_DIR}/ggml/src/ggml-cpu/arch/arm/cpu-feats.cpp
+    )
+elseif(CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64")
+    list(APPEND WHISPER_CPU_ARCH_SOURCES
+        ${WHISPER_DIR}/ggml/src/ggml-cpu/arch/x86/quants.c
+        ${WHISPER_DIR}/ggml/src/ggml-cpu/arch/x86/repack.cpp
+        ${WHISPER_DIR}/ggml/src/ggml-cpu/arch/x86/cpu-feats.cpp
+    )
+endif()
+
+target_sources(whisper_ggml_cpu PRIVATE ${WHISPER_CPU_ARCH_SOURCES})
+
+# Combine into the final pulse_whisper shared library that Kotlin loads.
+add_library(pulse_whisper SHARED
+    ${WHISPER_NATIVE_BRIDGE}
+    $<TARGET_OBJECTS:whisper_core>
+    $<TARGET_OBJECTS:whisper_ggml_core>
+    $<TARGET_OBJECTS:whisper_ggml_cpu>
+)
+
+# whisper.cpp requires C11 for ggml.c and C++17 for whisper.cpp.
+set_target_properties(whisper_ggml_core PROPERTIES C_STANDARD 11)
+set_target_properties(whisper_ggml_cpu PROPERTIES C_STANDARD 11)
+set_target_properties(pulse_whisper PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+    POSITION_INDEPENDENT_CODE ON
+)
+
+target_include_directories(pulse_whisper PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${WHISPER_DIR}/include
+    ${WHISPER_DIR}/ggml/include
+    ${WHISPER_DIR}/ggml/src           # for ggml-impl.h reached by ggml-cpu
+    ${WHISPER_DIR}/src
+)
+target_include_directories(whisper_core PRIVATE
+    ${WHISPER_DIR}/include
+    ${WHISPER_DIR}/ggml/include
+    ${WHISPER_DIR}/ggml/src
+    ${WHISPER_DIR}/src
+)
+# whisper.cpp uses WHISPER_VERSION (in whisper_version()). The upstream
+# CMake injects it via target_compile_definitions; we drive manually.
+target_compile_definitions(whisper_core PRIVATE
+    WHISPER_VERSION="1.8.4"
+)
+target_include_directories(whisper_ggml_core PRIVATE
+    ${WHISPER_DIR}/ggml/include
+    ${WHISPER_DIR}/ggml/src
+)
+# ggml.c uses GGML_VERSION + GGML_COMMIT (in ggml_version / ggml_commit).
+# whisper.cpp's bundled ggml is 0.9.8 (see whisper.cpp/ggml/CMakeLists.txt).
+target_compile_definitions(whisper_ggml_core PRIVATE
+    GGML_VERSION="0.9.8"
+    GGML_COMMIT="v1.8.4"
+)
+target_include_directories(whisper_ggml_cpu PRIVATE
+    ${WHISPER_DIR}/ggml/include
+    ${WHISPER_DIR}/ggml/src
+    ${WHISPER_DIR}/ggml/src/ggml-cpu  # for ops.h, traits.h, etc. reached as "ggml-cpu/foo.h"
+)
+
+# whisper.cpp compile definitions. These are normally injected by the
+# upstream CMake (version.cmake + add_compile_definitions), but since
+# we drive the build manually we hardcode them. Only user-visible
+# strings (ggml_print_system), runtime behavior is unaffected.
+target_compile_definitions(pulse_whisper PRIVATE
+    GGML_NATIVE=OFF
+    GGML_OPENMP=OFF
+    GGML_BACKEND_DL=OFF   # we don't expose runtime-loadable backends
+    GGML_CPU_ALL_VARIANTS=OFF
+    WHISPER_VERSION="1.8.4"
+)
+
+# Threads (for ggml-threading.cpp / std::thread on Android)
+find_package(Threads REQUIRED)
+target_link_libraries(pulse_whisper
+    log
+    android
+    Threads::Threads
+)
+
+# ARM arch level: same as llama.cpp's pulse_llm.
+if(CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
+    target_compile_definitions(pulse_whisper PRIVATE GGML_CPU_ARM_ARCH=8)
+elseif(CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")
+    target_compile_definitions(pulse_whisper PRIVATE GGML_CPU_ARM_ARCH=7)
+elseif(CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64")
+    # x86_64 uses default arch detect (AVX/AVX2 via __attribute__).
 endif()

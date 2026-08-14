@@ -40,3 +40,7 @@ release.keystore
 # Models (downloaded separately, can be large)
 models/
 *.gguf
+
+# Vendor tarballs (re-extract via tools/vendor-*.sh if needed)
+*.tar.gz
+*.tgz
