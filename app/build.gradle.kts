@@ -28,7 +28,7 @@ android {
         externalNativeBuild {
             cmake {
                 cppFlags += listOf("-std=c++17", "-fvisibility=hidden", "-O2")
-                arguments += listOf("-DANDROID_STL=c++_static")
+                arguments += listOf("-DANDROID_STL=c++_static", "-DPULSE_LLM_STUB=OFF")
             }
         }
         ndk {
